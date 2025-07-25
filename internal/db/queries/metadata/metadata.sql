@@ -16,9 +16,9 @@ ORDER BY mime;
 
 -- name: CreateImage :exec
 INSERT INTO images (
-    id, filename, mime_type_id, thumbnail, data, created_at, edited_at
+    id, filename, mime_type_id, thumbnail, created_at, edited_at
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?
 );
 
 -- name: GetImageByID :one

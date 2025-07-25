@@ -3,7 +3,7 @@
 //   sqlc v1.29.0
 // source: metadata.sql
 
-package generated
+package metadatadb
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 
 const createImage = `-- name: CreateImage :exec
 INSERT INTO images (
-    id, filename, mime_type_id, thumbnail, data, created_at, edited_at
+    id, filename, mime_type_id, thumbnail, created_at, edited_at
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -23,7 +23,6 @@ type CreateImageParams struct {
 	Filename   string
 	MimeTypeID int64
 	Thumbnail  []byte
-	Data       []byte
 	CreatedAt  sql.NullTime
 	EditedAt   sql.NullTime
 }
@@ -34,7 +33,6 @@ func (q *Queries) CreateImage(ctx context.Context, arg CreateImageParams) error 
 		arg.Filename,
 		arg.MimeTypeID,
 		arg.Thumbnail,
-		arg.Data,
 		arg.CreatedAt,
 		arg.EditedAt,
 	)
@@ -61,7 +59,7 @@ func (q *Queries) DeleteImage(ctx context.Context, id string) error {
 }
 
 const getImageByID = `-- name: GetImageByID :one
-SELECT id, filename, mime_type_id, thumbnail, data, created_at, edited_at FROM images
+SELECT id, filename, mime_type_id, thumbnail, created_at, edited_at FROM images
 WHERE id = ?
 `
 
@@ -73,7 +71,6 @@ func (q *Queries) GetImageByID(ctx context.Context, id string) (Image, error) {
 		&i.Filename,
 		&i.MimeTypeID,
 		&i.Thumbnail,
-		&i.Data,
 		&i.CreatedAt,
 		&i.EditedAt,
 	)

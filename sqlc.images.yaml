@@ -1,0 +1,9 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "internal/db/migrations/images"
+    queries: "internal/db/queries/images"
+    gen:
+      go:
+        package: "imagesdb"
+        out: "internal/db/generated/imagesdb"
