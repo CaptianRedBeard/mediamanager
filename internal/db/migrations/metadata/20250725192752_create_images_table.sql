@@ -16,6 +16,7 @@ CREATE TABLE images (
     filename TEXT NOT NULL,
     mime_type_id INTEGER NOT NULL,
     thumbnail BLOB,
+    hash TEXT NOT NULL UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     edited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (mime_type_id) REFERENCES mime_types(id) ON DELETE RESTRICT

@@ -3,7 +3,7 @@
 //   sqlc v1.29.0
 // source: images.sql
 
-package imagesdb
+package images
 
 import (
 	"context"

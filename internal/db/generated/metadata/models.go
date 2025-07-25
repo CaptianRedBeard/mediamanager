@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.29.0
 
-package metadatadb
+package metadata
 
 import (
 	"database/sql"
@@ -13,6 +13,7 @@ type Image struct {
 	Filename   string
 	MimeTypeID int64
 	Thumbnail  []byte
+	Hash       string
 	CreatedAt  sql.NullTime
 	EditedAt   sql.NullTime
 }

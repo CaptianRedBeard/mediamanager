@@ -5,5 +5,5 @@ sql:
     queries: "internal/db/queries/metadata"
     gen:
       go:
-        package: "metadatadb"
-        out: "internal/db/generated/metadatadb"
+        package: "metadata"
+        out: "internal/db/generated/metadata"

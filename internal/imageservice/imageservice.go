@@ -1,0 +1,137 @@
+package imageservice
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"io"
+	"log"
+	imagesdb "mediamanager/internal/db/generated/images"
+	metadatadb "mediamanager/internal/db/generated/metadata"
+
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/nfnt/resize"
+)
+
+type ImageService struct {
+	ImageDB    *imagesdb.Queries
+	MetaDB     *metadatadb.Queries
+	AssetsPath string
+}
+
+func NewImageService(imageDB *imagesdb.Queries, metaDB *metadatadb.Queries, assetsPath string) *ImageService {
+	return &ImageService{
+		ImageDB:    imageDB,
+		MetaDB:     metaDB,
+		AssetsPath: assetsPath,
+	}
+}
+
+func (s *ImageService) importSingleImage(ctx context.Context, path string) error {
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading file %q: %w", path, err)
+	}
+
+	mimeType := http.DetectContentType(fileBytes)
+
+	mime, err := s.MetaDB.GetMimeTypeByValue(ctx, mimeType)
+	if err != nil {
+		result, insertErr := s.MetaDB.CreateMimeType(ctx, mimeType)
+		if insertErr != nil {
+			return fmt.Errorf("inserting mime type %q: %w", mimeType, insertErr)
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("getting last insert id for mime type %q: %w", mimeType, err)
+		}
+
+		mime.ID = int64(id)
+		mime.Mime = mimeType
+	}
+
+	imageID := uuid.New().String()
+	err = s.ImageDB.InsertImageBlob(ctx, imagesdb.InsertImageBlobParams{
+		ID:   imageID,
+		Data: fileBytes,
+	})
+	if err != nil {
+		return fmt.Errorf("inserting image blob %q: %w", imageID, err)
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(fileBytes))
+	if err != nil {
+		return fmt.Errorf("decoding image %q: %w", path, err)
+	}
+
+	thumb := resize.Thumbnail(100, 100, img, resize.Lanczos3)
+
+	var thumbBuf bytes.Buffer
+	err = encodeThumbnail(&thumbBuf, thumb, mimeType)
+	if err != nil {
+		return fmt.Errorf("encoding thumbnail for %q: %w", path, err)
+	}
+
+	_, filename := filepath.Split(path)
+	now := time.Now()
+	sqlNow := sql.NullTime{
+		Time:  now,
+		Valid: true,
+	}
+
+	err = s.MetaDB.CreateImage(ctx, metadatadb.CreateImageParams{
+		ID:         imageID,
+		Filename:   filename,
+		MimeTypeID: mime.ID,
+		Thumbnail:  thumbBuf.Bytes(),
+		CreatedAt:  sqlNow,
+		EditedAt:   sqlNow,
+	})
+	if err != nil {
+		return fmt.Errorf("creating image metadata for %q: %w", filename, err)
+	}
+
+	return nil
+}
+
+func (s *ImageService) ImportImages(ctx context.Context) error {
+	files, err := os.ReadDir(s.AssetsPath)
+	if err != nil {
+		return fmt.Errorf("reading assets directory %q: %w", s.AssetsPath, err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		imagePath := filepath.Join(s.AssetsPath, file.Name())
+		if err := s.importSingleImage(ctx, imagePath); err != nil {
+			log.Printf("failed to import %q: %v", file.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+func encodeThumbnail(w io.Writer, img image.Image, mimeType string) error {
+	switch mimeType {
+	case "image/png":
+		return png.Encode(w, img)
+	case "image/jpeg":
+		return jpeg.Encode(w, img, &jpeg.Options{Quality: 80})
+	default:
+		return errors.New("unsupported MIME type for thumbnail")
+	}
+}

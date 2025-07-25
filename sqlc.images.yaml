@@ -5,5 +5,5 @@ sql:
     queries: "internal/db/queries/images"
     gen:
       go:
-        package: "imagesdb"
-        out: "internal/db/generated/imagesdb"
+        package: "images"
+        out: "internal/db/generated/images"
