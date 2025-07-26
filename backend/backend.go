@@ -12,12 +12,14 @@ import (
 	"mediamanager/backend/imageservice"
 )
 
+// Service encapsulates HTTP handlers and services
 type Service struct {
 	ImageService *imageservice.ImageService
 	Router       *mux.Router
+	MediaAPI     *MediaAPI
 }
 
-// NewService initializes DB, services, router, and handlers
+// NewService initializes DB, services, router, handlers, and Wails API
 func NewService(ctx context.Context, imageDBPath, metaDBPath string) (*Service, error) {
 	// Initialize DB connections
 	app, err := config.Init(imageDBPath, metaDBPath)
@@ -68,9 +70,13 @@ func NewService(ctx context.Context, imageDBPath, metaDBPath string) (*Service, 
 	r.HandleFunc("/albums/{id}/images", albumsHandler.HandleAddImagesToAlbum).Methods("POST")
 	r.HandleFunc("/albums/{id}/images/{image_id}", albumsHandler.HandleRemoveImageFromAlbum).Methods("DELETE")
 
+	// ✅ Create and attach MediaAPI for Wails
+	mediaAPI := NewMediaAPI(imageService)
+
 	return &Service{
 		ImageService: imageService,
 		Router:       r,
+		MediaAPI:     mediaAPI,
 	}, nil
 }
 
