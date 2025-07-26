@@ -1,9 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
-	"log"
 	"mediamanager/internal/imageservice"
+	"mediamanager/internal/utils"
 	"net/http"
 )
 
@@ -21,13 +20,13 @@ type galleryItem struct {
 	Mime      string `json:"mime"`
 	CreatedAt string `json:"created_at"`
 	ThumbURL  string `json:"thumb_url"`
+	ImageURL  string `json:"image_url"`
 }
 
 func (h *GalleryHandler) HandleGallery(w http.ResponseWriter, r *http.Request) {
 	images, err := h.ImageService.MetaDB.ListImages(r.Context())
 	if err != nil {
-		http.Error(w, "failed to list images", http.StatusInternalServerError)
-		log.Printf("error listing images: %v", err)
+		utils.RespondWithError(w, http.StatusInternalServerError, "failed to list images", err)
 		return
 	}
 
@@ -44,9 +43,9 @@ func (h *GalleryHandler) HandleGallery(w http.ResponseWriter, r *http.Request) {
 			Mime:      img.Mime,
 			CreatedAt: created,
 			ThumbURL:  "/thumb/" + img.ID,
+			ImageURL:  "/image/" + img.ID, // New field added
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(items)
+	utils.RespondWithJSON(w, http.StatusOK, items)
 }
