@@ -12,6 +12,7 @@ type Album struct {
 	ID          string
 	Name        string
 	Description sql.NullString
+	Private     sql.NullInt64
 	CreatedAt   sql.NullTime
 	EditedAt    sql.NullTime
 }
@@ -32,7 +33,21 @@ type ImageAlbum struct {
 	CreatedAt sql.NullTime
 }
 
+type ImageTag struct {
+	ImageID   string
+	TagID     string
+	CreatedAt sql.NullTime
+}
+
 type MimeType struct {
 	ID   int64
 	Mime string
+}
+
+type Tag struct {
+	ID        string
+	Name      string
+	Private   sql.NullInt64
+	CreatedAt sql.NullTime
+	EditedAt  sql.NullTime
 }

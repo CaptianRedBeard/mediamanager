@@ -6,18 +6,30 @@ INSERT INTO images (
 );
 
 -- name: GetImageByID :one
-SELECT * FROM images
+SELECT
+    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
+FROM images
 WHERE id = ?;
 
 -- name: GetImageByHash :one
-SELECT * FROM images
+SELECT
+    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
+FROM images
 WHERE hash = ?;
 
 -- name: ListImages :many
-SELECT images.id, filename, mime, created_at, edited_at
+SELECT
+    images.id,
+    images.filename,
+    images.mime_type_id,
+    mime_types.mime,
+    images.thumbnail,
+    images.hash,
+    images.created_at,
+    images.edited_at
 FROM images
 JOIN mime_types ON images.mime_type_id = mime_types.id
-ORDER BY created_at DESC;
+ORDER BY images.created_at DESC;
 
 -- name: UpdateImageMetadata :exec
 UPDATE images
@@ -27,4 +39,3 @@ WHERE id = ?;
 -- name: DeleteImage :exec
 DELETE FROM images
 WHERE id = ?;
-
