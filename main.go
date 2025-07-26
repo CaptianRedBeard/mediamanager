@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"mediamanager/backend"
-	"mediamanager/backend/bridge"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -20,26 +19,27 @@ var assetsFS embed.FS
 func main() {
 	ctx := context.Background()
 
+	// Initialize backend service
 	backendService, err := backend.NewService(ctx, "data/images.db", "data/metadata.db")
 	if err != nil {
 		log.Fatalf("Failed to initialize backend: %v", err)
 	}
 
-	// Start backend HTTP server in background goroutine
+	// Start HTTP server in background
 	go func() {
 		if err := backendService.StartServer(":8080"); err != nil {
 			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
 
-	// Build the Wails bridge to expose backend logic
-	wailsBridge := bridge.New(backendService)
-
+	// Run Wails app, exposing the MediaAPI directly to the frontend
 	err = wails.Run(&options.App{
 		Title:  "Media Manager",
 		Width:  1024,
 		Height: 768,
-		Bind:   []interface{}{wailsBridge}, // Bind the bridge, not backend.Service
+		Bind: []interface{}{
+			backendService.MediaAPI, // Expose MediaAPI directly
+		},
 		AssetServer: &assetserver.Options{
 			Assets: assetsFS,
 		},
