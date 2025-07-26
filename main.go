@@ -2,49 +2,54 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"embed"
 	"log"
-	"net/http"
 
-	"github.com/gorilla/mux"
+	"mediamanager/backend"
+	"mediamanager/backend/bridge"
 
-	"mediamanager/internal/config"
-	"mediamanager/internal/handlers"
-	"mediamanager/internal/imageservice"
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
+
+//go:embed all:frontend/dist
+var assetsFS embed.FS
 
 func main() {
 	ctx := context.Background()
 
-	// Step 1: Initialize DBs and services
-	app, err := config.Init("data/images.db", "data/metadata.db")
+	backendService, err := backend.NewService(ctx, "data/images.db", "data/metadata.db")
 	if err != nil {
-		log.Fatalf("Failed to initialize: %v", err)
-	}
-	defer app.ImageDB.Close()
-	defer app.MetaDB.Close()
-
-	imageService := imageservice.NewImageService(app.ImageQueries, app.MetaQueries, "assets")
-	if err := imageService.ImportImages(ctx); err != nil {
-		log.Fatalf("Failed to import images: %v", err)
+		log.Fatalf("Failed to initialize backend: %v", err)
 	}
 
-	// Step 2: Create handlers
-	galleryHandler := handlers.NewGalleryHandler(imageService)
-	thumbHandler := handlers.NewThumbnailHandler(imageService)
-	deleteHandler := handlers.NewDeleteHandler(imageService)
-	imageHandler := handlers.NewImageHandler(imageService)
-	uploadHandler := handlers.NewUploadHandler(imageService)
+	// Start backend HTTP server in background goroutine
+	go func() {
+		if err := backendService.StartServer(":8080"); err != nil {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
 
-	// Step 3: Set up router and routes
-	r := mux.NewRouter()
-	r.HandleFunc("/gallery", galleryHandler.HandleGallery).Methods("GET")
-	r.HandleFunc("/thumb/{id}", thumbHandler.HandleThumbnail).Methods("GET")
-	r.HandleFunc("/image/{id}", imageHandler.HandleImage).Methods("GET")
-	r.HandleFunc("/delete/{id}", deleteHandler.HandleDelete).Methods("DELETE")
-	r.HandleFunc("/upload", uploadHandler.HandleUpload).Methods("POST")
+	// Build the Wails bridge to expose backend logic
+	wailsBridge := bridge.New(backendService)
 
-	// Step 4: Start HTTP server
-	fmt.Println("Server running at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	err = wails.Run(&options.App{
+		Title:  "Media Manager",
+		Width:  1024,
+		Height: 768,
+		Bind:   []interface{}{wailsBridge}, // Bind the bridge, not backend.Service
+		AssetServer: &assetserver.Options{
+			Assets: assetsFS,
+		},
+		Windows: &windows.Options{
+			WebviewIsTransparent: false,
+			WindowIsTranslucent:  false,
+		},
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
