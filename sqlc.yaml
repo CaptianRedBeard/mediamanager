@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "internal/db/schema/images/"
+    queries: "internal/db/queries/images/"
+    gen:
+      go:
+        package: "images"
+        out: "internal/db/generated/images"
+
+  - engine: "sqlite"
+    schema: "internal/db/schema/metadata/"
+    queries: "internal/db/queries/metadata/"
+    gen:
+      go:
+        package: "metadata"
+        out: "internal/db/generated/metadata"

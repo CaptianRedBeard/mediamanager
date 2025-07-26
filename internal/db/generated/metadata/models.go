@@ -8,6 +8,14 @@ import (
 	"database/sql"
 )
 
+type Album struct {
+	ID          string
+	Name        string
+	Description sql.NullString
+	CreatedAt   sql.NullTime
+	EditedAt    sql.NullTime
+}
+
 type Image struct {
 	ID         string
 	Filename   string
@@ -16,6 +24,12 @@ type Image struct {
 	Hash       string
 	CreatedAt  sql.NullTime
 	EditedAt   sql.NullTime
+}
+
+type ImageAlbum struct {
+	ImageID   string
+	AlbumID   string
+	CreatedAt sql.NullTime
 }
 
 type MimeType struct {

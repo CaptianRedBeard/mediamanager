@@ -257,3 +257,7 @@ func (s *ImageService) SaveImage(ctx context.Context, filename string, fileBytes
 
 	return imageID, nil
 }
+
+func (s *ImageService) GetAlbumsForImage(ctx context.Context, imageID string) ([]metadatadb.Album, error) {
+	return s.MetaDB.ListAlbumsForImage(ctx, imageID)
+}
