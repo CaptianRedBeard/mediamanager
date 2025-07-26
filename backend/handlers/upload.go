@@ -17,6 +17,17 @@ func NewUploadHandler(svc *imageservice.ImageService) *UploadHandler {
 }
 
 func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.RespondWithError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "" || contentType[:19] != "multipart/form-data" {
+		utils.RespondWithError(w, http.StatusBadRequest, "content type must be multipart/form-data", nil)
+		return
+	}
+
 	err := r.ParseMultipartForm(10 << 20) // 10MB max
 	if err != nil {
 		utils.RespondWithError(w, http.StatusBadRequest, "invalid multipart form", err)
