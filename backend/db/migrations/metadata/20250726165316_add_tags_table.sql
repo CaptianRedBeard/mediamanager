@@ -1,0 +1,25 @@
+-- +goose Up
+ALTER TABLE albums ADD COLUMN private BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE tags (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    private BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    edited_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE image_tag (
+    image_id TEXT NOT NULL,
+    tag_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (image_id, tag_id),
+    FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+-- +goose Down
+ALTER TABLE albums DROP COLUMN private;
+
+DROP TABLE IF EXISTS image_tag;
+DROP TABLE IF EXISTS tags;
