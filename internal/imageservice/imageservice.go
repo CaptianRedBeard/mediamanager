@@ -261,3 +261,24 @@ func (s *ImageService) SaveImage(ctx context.Context, filename string, fileBytes
 func (s *ImageService) GetAlbumsForImage(ctx context.Context, imageID string) ([]metadatadb.Album, error) {
 	return s.MetaDB.ListAlbumsForImage(ctx, imageID)
 }
+
+func (s *ImageService) AddAlbum(ctx context.Context, name, description string) (string, error) {
+	id := uuid.New().String()
+
+	desc := sql.NullString{
+		String: description,
+		Valid:  description != "",
+	}
+
+	err := s.MetaDB.CreateAlbum(ctx, metadatadb.CreateAlbumParams{
+		ID:          id,
+		Name:        name,
+		Description: desc,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
+}

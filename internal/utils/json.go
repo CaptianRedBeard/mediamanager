@@ -4,6 +4,7 @@ package utils
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 )
@@ -33,4 +34,10 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	}
 	w.WriteHeader(code)
 	w.Write(data)
+}
+
+func ParseJSON(body io.Reader, target interface{}) error {
+	decoder := json.NewDecoder(body)
+	decoder.DisallowUnknownFields() // Optional: strict mode
+	return decoder.Decode(target)
 }
