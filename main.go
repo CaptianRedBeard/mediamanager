@@ -42,7 +42,7 @@ func main() {
 	r.HandleFunc("/thumb/{id}", thumbHandler.HandleThumbnail).Methods("GET")
 	r.HandleFunc("/image/{id}", imageHandler.HandleImage).Methods("GET")
 	r.HandleFunc("/delete/{id}", deleteHandler.HandleDelete).Methods("DELETE")
-	r.HandleFunc("/upload", uploadHandler.HandleUpload).Methods("POST") // 👈 New POST endpoint
+	r.HandleFunc("/upload", uploadHandler.HandleUpload).Methods("POST")
 
 	// Step 4: Start HTTP server
 	fmt.Println("Server running at http://localhost:8080")

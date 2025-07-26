@@ -27,3 +27,4 @@ WHERE id = ?;
 -- name: DeleteImage :exec
 DELETE FROM images
 WHERE id = ?;
+

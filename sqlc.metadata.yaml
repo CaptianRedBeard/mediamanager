@@ -1,9 +1,0 @@
-version: "2"
-sql:
-  - engine: "sqlite"
-    schema: "internal/db/migrations/metadata"
-    queries: "internal/db/queries/metadata"
-    gen:
-      go:
-        package: "metadata"
-        out: "internal/db/generated/metadata"
