@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Images</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <h1>Upload Images</h1>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="image" id="imageInput" multiple />
+    <button type="submit">Upload</button>
+  </form>
+  <ul id="uploadResults"></ul>
+  <div id="uploadStatus"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
