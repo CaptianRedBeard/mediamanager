@@ -29,19 +29,25 @@ func (q *Queries) AddImageToAlbum(ctx context.Context, arg AddImageToAlbumParams
 
 const createAlbum = `-- name: CreateAlbum :exec
 
-INSERT INTO albums (id, name, description)
-VALUES (?, ?, ?)
+INSERT INTO albums (id, name, description, private)
+VALUES (?, ?, ?, ?)
 `
 
 type CreateAlbumParams struct {
 	ID          string
 	Name        string
 	Description sql.NullString
+	Private     sql.NullInt64
 }
 
 // ALBUMS --
 func (q *Queries) CreateAlbum(ctx context.Context, arg CreateAlbumParams) error {
-	_, err := q.db.ExecContext(ctx, createAlbum, arg.ID, arg.Name, arg.Description)
+	_, err := q.db.ExecContext(ctx, createAlbum,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.Private,
+	)
 	return err
 }
 
@@ -56,7 +62,7 @@ func (q *Queries) DeleteAlbum(ctx context.Context, id string) error {
 }
 
 const getAlbum = `-- name: GetAlbum :one
-SELECT id, name, description, created_at, edited_at
+SELECT id, name, description, private, created_at, edited_at
 FROM albums
 WHERE id = ?
 `
@@ -68,6 +74,7 @@ func (q *Queries) GetAlbum(ctx context.Context, id string) (Album, error) {
 		&i.ID,
 		&i.Name,
 		&i.Description,
+		&i.Private,
 		&i.CreatedAt,
 		&i.EditedAt,
 	)
@@ -75,7 +82,7 @@ func (q *Queries) GetAlbum(ctx context.Context, id string) (Album, error) {
 }
 
 const listAlbums = `-- name: ListAlbums :many
-SELECT id, name, description, created_at, edited_at
+SELECT id, name, description, private, created_at, edited_at
 FROM albums
 ORDER BY created_at DESC
 `
@@ -93,6 +100,7 @@ func (q *Queries) ListAlbums(ctx context.Context) ([]Album, error) {
 			&i.ID,
 			&i.Name,
 			&i.Description,
+			&i.Private,
 			&i.CreatedAt,
 			&i.EditedAt,
 		); err != nil {
@@ -110,7 +118,13 @@ func (q *Queries) ListAlbums(ctx context.Context) ([]Album, error) {
 }
 
 const listAlbumsForImage = `-- name: ListAlbumsForImage :many
-SELECT a.id, a.name, a.description, a.created_at, a.edited_at
+SELECT
+    a.id,
+    a.name,
+    a.description,
+    a.private,
+    a.created_at,
+    a.edited_at
 FROM albums a
 JOIN image_album ia ON a.id = ia.album_id
 WHERE ia.image_id = ?
@@ -130,6 +144,7 @@ func (q *Queries) ListAlbumsForImage(ctx context.Context, imageID string) ([]Alb
 			&i.ID,
 			&i.Name,
 			&i.Description,
+			&i.Private,
 			&i.CreatedAt,
 			&i.EditedAt,
 		); err != nil {
@@ -147,7 +162,14 @@ func (q *Queries) ListAlbumsForImage(ctx context.Context, imageID string) ([]Alb
 }
 
 const listImagesInAlbum = `-- name: ListImagesInAlbum :many
-SELECT i.id, i.filename, i.mime_type_id, i.thumbnail, i.hash, i.created_at, i.edited_at
+SELECT
+    i.id,
+    i.filename,
+    i.mime_type_id,
+    i.thumbnail,
+    i.hash,
+    i.created_at,
+    i.edited_at
 FROM images i
 JOIN image_album ia ON i.id = ia.image_id
 WHERE ia.album_id = ?
@@ -185,6 +207,44 @@ func (q *Queries) ListImagesInAlbum(ctx context.Context, albumID string) ([]Imag
 	return items, nil
 }
 
+const listPublicAlbums = `-- name: ListPublicAlbums :many
+SELECT id, name, description, private, created_at, edited_at
+FROM albums
+WHERE private = 0
+ORDER BY created_at DESC
+`
+
+// Optional: List only public albums (private = 0)
+func (q *Queries) ListPublicAlbums(ctx context.Context) ([]Album, error) {
+	rows, err := q.db.QueryContext(ctx, listPublicAlbums)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Album
+	for rows.Next() {
+		var i Album
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Private,
+			&i.CreatedAt,
+			&i.EditedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeImageFromAlbum = `-- name: RemoveImageFromAlbum :exec
 DELETE FROM image_album
 WHERE image_id = ? AND album_id = ?
@@ -202,17 +262,23 @@ func (q *Queries) RemoveImageFromAlbum(ctx context.Context, arg RemoveImageFromA
 
 const updateAlbum = `-- name: UpdateAlbum :exec
 UPDATE albums
-SET name = ?, description = ?, edited_at = CURRENT_TIMESTAMP
+SET name = ?, description = ?, private = ?, edited_at = CURRENT_TIMESTAMP
 WHERE id = ?
 `
 
 type UpdateAlbumParams struct {
 	Name        string
 	Description sql.NullString
+	Private     sql.NullInt64
 	ID          string
 }
 
 func (q *Queries) UpdateAlbum(ctx context.Context, arg UpdateAlbumParams) error {
-	_, err := q.db.ExecContext(ctx, updateAlbum, arg.Name, arg.Description, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateAlbum,
+		arg.Name,
+		arg.Description,
+		arg.Private,
+		arg.ID,
+	)
 	return err
 }

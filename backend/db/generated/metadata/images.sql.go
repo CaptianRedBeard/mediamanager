@@ -52,7 +52,9 @@ func (q *Queries) DeleteImage(ctx context.Context, id string) error {
 }
 
 const getImageByHash = `-- name: GetImageByHash :one
-SELECT id, filename, mime_type_id, thumbnail, hash, created_at, edited_at FROM images
+SELECT
+    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
+FROM images
 WHERE hash = ?
 `
 
@@ -72,7 +74,9 @@ func (q *Queries) GetImageByHash(ctx context.Context, hash string) (Image, error
 }
 
 const getImageByID = `-- name: GetImageByID :one
-SELECT id, filename, mime_type_id, thumbnail, hash, created_at, edited_at FROM images
+SELECT
+    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
+FROM images
 WHERE id = ?
 `
 
@@ -92,18 +96,29 @@ func (q *Queries) GetImageByID(ctx context.Context, id string) (Image, error) {
 }
 
 const listImages = `-- name: ListImages :many
-SELECT images.id, filename, mime, created_at, edited_at
+SELECT
+    images.id,
+    images.filename,
+    images.mime_type_id,
+    mime_types.mime,
+    images.thumbnail,
+    images.hash,
+    images.created_at,
+    images.edited_at
 FROM images
 JOIN mime_types ON images.mime_type_id = mime_types.id
-ORDER BY created_at DESC
+ORDER BY images.created_at DESC
 `
 
 type ListImagesRow struct {
-	ID        string
-	Filename  string
-	Mime      string
-	CreatedAt sql.NullTime
-	EditedAt  sql.NullTime
+	ID         string
+	Filename   string
+	MimeTypeID int64
+	Mime       string
+	Thumbnail  []byte
+	Hash       string
+	CreatedAt  sql.NullTime
+	EditedAt   sql.NullTime
 }
 
 func (q *Queries) ListImages(ctx context.Context) ([]ListImagesRow, error) {
@@ -118,7 +133,10 @@ func (q *Queries) ListImages(ctx context.Context) ([]ListImagesRow, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Filename,
+			&i.MimeTypeID,
 			&i.Mime,
+			&i.Thumbnail,
+			&i.Hash,
 			&i.CreatedAt,
 			&i.EditedAt,
 		); err != nil {

@@ -13,7 +13,7 @@ import (
 	"image/png"
 	"io"
 	"log"
-	imagesdb "mediamanager/backend/db/generated/images"
+	"mediamanager/backend/db/generated/images"
 	metadatadb "mediamanager/backend/db/generated/metadata"
 	"net/http"
 	"os"
@@ -25,14 +25,14 @@ import (
 )
 
 type ImageService struct {
-	ImageDB    *imagesdb.Queries
+	ImgDB      *images.Queries
 	MetaDB     *metadatadb.Queries
 	AssetsPath string
 }
 
-func NewImageService(imageDB *imagesdb.Queries, metaDB *metadatadb.Queries, assetsPath string) *ImageService {
+func NewImageService(imageDB *images.Queries, metaDB *metadatadb.Queries, assetsPath string) *ImageService {
 	return &ImageService{
-		ImageDB:    imageDB,
+		ImgDB:      imageDB,
 		MetaDB:     metaDB,
 		AssetsPath: assetsPath,
 	}
@@ -44,7 +44,6 @@ func (s *ImageService) importSingleImage(ctx context.Context, path string) error
 		return fmt.Errorf("reading file %q: %w", path, err)
 	}
 
-	// Compute SHA-256 hash
 	hasher := sha256.New()
 	hasher.Write(fileBytes)
 	hash := hex.EncodeToString(hasher.Sum(nil))
@@ -68,7 +67,7 @@ func (s *ImageService) importSingleImage(ctx context.Context, path string) error
 	}
 
 	imageID := uuid.New().String()
-	err = s.ImageDB.InsertImageBlob(ctx, imagesdb.InsertImageBlobParams{
+	err = s.ImgDB.InsertImageBlob(ctx, images.InsertImageBlobParams{
 		ID:   imageID,
 		Data: fileBytes,
 	})
@@ -91,10 +90,7 @@ func (s *ImageService) importSingleImage(ctx context.Context, path string) error
 
 	_, filename := filepath.Split(path)
 	now := time.Now()
-	sqlNow := sql.NullTime{
-		Time:  now,
-		Valid: true,
-	}
+	sqlNow := sql.NullTime{Time: now, Valid: true}
 
 	err = s.MetaDB.CreateImage(ctx, metadatadb.CreateImageParams{
 		ID:         imageID,
@@ -148,40 +144,34 @@ func (s *ImageService) GetThumbnailByID(ctx context.Context, id string) ([]byte,
 	if err != nil {
 		return nil, "", fmt.Errorf("image not found: %w", err)
 	}
-
 	if len(img.Thumbnail) == 0 {
 		return nil, "", fmt.Errorf("thumbnail not found")
 	}
-
 	mime, err := s.MetaDB.GetMimeTypeByID(ctx, img.MimeTypeID)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get mime type: %w", err)
 	}
-
 	return img.Thumbnail, mime.Mime, nil
 }
 
 func (s *ImageService) GetImageBlobByID(ctx context.Context, id string) ([]byte, string, error) {
-	blob, err := s.ImageDB.GetImageBlob(ctx, id)
+	blob, err := s.ImgDB.GetImageBlob(ctx, id)
 	if err != nil {
 		return nil, "", fmt.Errorf("image blob not found: %w", err)
 	}
-
 	meta, err := s.MetaDB.GetImageByID(ctx, id)
 	if err != nil {
 		return nil, "", fmt.Errorf("image metadata not found: %w", err)
 	}
-
 	mime, err := s.MetaDB.GetMimeTypeByID(ctx, meta.MimeTypeID)
 	if err != nil {
 		return nil, "", fmt.Errorf("mime type not found: %w", err)
 	}
-
 	return blob, mime.Mime, nil
 }
 
 func (s *ImageService) DeleteImageByID(ctx context.Context, id string) error {
-	if err := s.ImageDB.DeleteImageBlob(ctx, id); err != nil {
+	if err := s.ImgDB.DeleteImageBlob(ctx, id); err != nil {
 		return fmt.Errorf("deleting blob: %w", err)
 	}
 	if err := s.MetaDB.DeleteImage(ctx, id); err != nil {
@@ -191,7 +181,6 @@ func (s *ImageService) DeleteImageByID(ctx context.Context, id string) error {
 }
 
 func (s *ImageService) SaveImage(ctx context.Context, filename string, fileBytes []byte) (string, error) {
-	// Compute SHA-256 hash
 	hasher := sha256.New()
 	hasher.Write(fileBytes)
 	hash := hex.EncodeToString(hasher.Sum(nil))
@@ -215,7 +204,7 @@ func (s *ImageService) SaveImage(ctx context.Context, filename string, fileBytes
 	}
 
 	imageID := uuid.New().String()
-	err = s.ImageDB.InsertImageBlob(ctx, imagesdb.InsertImageBlobParams{
+	err = s.ImgDB.InsertImageBlob(ctx, images.InsertImageBlobParams{
 		ID:   imageID,
 		Data: fileBytes,
 	})
@@ -237,10 +226,7 @@ func (s *ImageService) SaveImage(ctx context.Context, filename string, fileBytes
 	}
 
 	now := time.Now()
-	sqlNow := sql.NullTime{
-		Time:  now,
-		Valid: true,
-	}
+	sqlNow := sql.NullTime{Time: now, Valid: true}
 
 	err = s.MetaDB.CreateImage(ctx, metadatadb.CreateImageParams{
 		ID:         imageID,
@@ -260,4 +246,62 @@ func (s *ImageService) SaveImage(ctx context.Context, filename string, fileBytes
 
 func (s *ImageService) GetAlbumsForImage(ctx context.Context, imageID string) ([]metadatadb.Album, error) {
 	return s.MetaDB.ListAlbumsForImage(ctx, imageID)
+}
+
+func (s *ImageService) AddAlbum(ctx context.Context, name, description string) (string, error) {
+	id := uuid.New().String()
+	desc := sql.NullString{String: description, Valid: description != ""}
+
+	err := s.MetaDB.CreateAlbum(ctx, metadatadb.CreateAlbumParams{
+		ID:          id,
+		Name:        name,
+		Description: desc,
+	})
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (s *ImageService) AddTag(ctx context.Context, name string, private bool) (string, error) {
+	id := uuid.New().String()
+	privateValue := sql.NullInt64{Int64: 0, Valid: true}
+	if private {
+		privateValue.Int64 = 1
+	}
+	err := s.MetaDB.CreateTag(ctx, metadatadb.CreateTagParams{
+		ID:      id,
+		Name:    name,
+		Private: privateValue,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create tag: %w", err)
+	}
+	return id, nil
+}
+
+func (s *ImageService) ListTags(ctx context.Context) ([]metadatadb.Tag, error) {
+	return s.MetaDB.ListTags(ctx)
+}
+
+func (s *ImageService) ListTagsForImage(ctx context.Context, imageID string) ([]metadatadb.Tag, error) {
+	return s.MetaDB.ListTagsForImage(ctx, imageID)
+}
+
+func (s *ImageService) AddTagToImage(ctx context.Context, imageID, tagID string) error {
+	return s.MetaDB.AddImageToTag(ctx, metadatadb.AddImageToTagParams{
+		ImageID: imageID,
+		TagID:   tagID,
+	})
+}
+
+func (s *ImageService) RemoveTagFromImage(ctx context.Context, imageID, tagID string) error {
+	return s.MetaDB.RemoveImageFromTag(ctx, metadatadb.RemoveImageFromTagParams{
+		ImageID: imageID,
+		TagID:   tagID,
+	})
+}
+
+func (s *ImageService) DeleteTag(ctx context.Context, id string) error {
+	return s.MetaDB.DeleteTag(ctx, id)
 }

@@ -20,7 +20,8 @@ func (q *Queries) CreateMimeType(ctx context.Context, mime string) (sql.Result, 
 }
 
 const getMimeTypeByID = `-- name: GetMimeTypeByID :one
-SELECT id, mime FROM mime_types
+SELECT id, mime
+FROM mime_types
 WHERE id = ?
 `
 
@@ -32,7 +33,8 @@ func (q *Queries) GetMimeTypeByID(ctx context.Context, id int64) (MimeType, erro
 }
 
 const getMimeTypeByValue = `-- name: GetMimeTypeByValue :one
-SELECT id, mime FROM mime_types
+SELECT id, mime
+FROM mime_types
 WHERE mime = ?
 `
 
@@ -44,7 +46,8 @@ func (q *Queries) GetMimeTypeByValue(ctx context.Context, mime string) (MimeType
 }
 
 const listMimeTypes = `-- name: ListMimeTypes :many
-SELECT id, mime FROM mime_types
+SELECT id, mime
+FROM mime_types
 ORDER BY mime
 `
 
