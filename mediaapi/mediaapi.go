@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+
 	"mediamanager/backend/config"
+	"mediamanager/backend/db/generated/metadata"
 	"mediamanager/backend/imageservice"
 )
 
@@ -12,6 +14,7 @@ import (
 
 type MediaAPI struct {
 	ImageService *imageservice.ImageService
+	AlbumService *imageservice.AlbumService
 }
 
 func NewMediaAPI(ctx context.Context, imageDBPath, metaDBPath string) (*MediaAPI, error) {
@@ -20,40 +23,58 @@ func NewMediaAPI(ctx context.Context, imageDBPath, metaDBPath string) (*MediaAPI
 		return nil, fmt.Errorf("failed to initialize databases: %w", err)
 	}
 
-	// Create the BlobService and MetadataService using query structs
 	blobService := imageservice.NewBlobService(app.ImageQueries)
 	metaService := imageservice.NewMetadataService(app.MetaQueries)
+	tagService := imageservice.NewTagService(app.MetaQueries)
+	albumService := imageservice.NewAlbumService(app.MetaQueries)
 
-	// Initialize the ImageService with the above services and assets directory
-	imageService := imageservice.New(blobService, metaService)
-	return &MediaAPI{ImageService: imageService}, err
+	imageService := imageservice.New(blobService, metaService, tagService, albumService)
+
+	return &MediaAPI{
+		ImageService: imageService,
+		AlbumService: albumService,
+	}, nil
 }
 
 func (m *MediaAPI) GetImageBase64(id string) (string, error) {
-	data, err := m.ImageService.Blobs.Get(context.Background(), id)
+	ctx := context.Background()
+
+	data, err := m.ImageService.Blobs.Get(ctx, id)
 	if err != nil {
 		return "", err
 	}
-	mime, err := m.ImageService.Meta.SelectMimeTypeByImageID(context.Background(), id)
+
+	mime, err := m.ImageService.Meta.SelectMimeTypeByImageID(ctx, id)
 	if err != nil {
 		return "", err
 	}
+
 	encoded := base64.StdEncoding.EncodeToString(data)
 	return fmt.Sprintf("data:%s;base64,%s", mime, encoded), nil
 }
 
 func (m *MediaAPI) GetThumbnailBase64(id string) (string, error) {
-	data, mime, err := m.ImageService.Meta.GetThumbnailAndMime(context.Background(), id)
+	ctx := context.Background()
+
+	data, mime, err := m.ImageService.Meta.GetThumbnailAndMime(ctx, id)
 	if err != nil {
 		return "", err
 	}
+
 	encoded := base64.StdEncoding.EncodeToString(data)
 	return fmt.Sprintf("data:%s;base64,%s", mime, encoded), nil
 }
 
+// Import a single image
 func (m *MediaAPI) ImportImage(filename string, fileBytes []byte) (string, error) {
 	ctx := context.Background()
 	return m.ImageService.Importer.ImportImage(ctx, filename, fileBytes)
+}
+
+// Import images from a directory
+func (m *MediaAPI) ImportImagesFromDirectory(dir string) error {
+	ctx := context.Background()
+	return m.ImageService.ImportImages(ctx, dir)
 }
 
 type ThumbnailData struct {
@@ -63,20 +84,86 @@ type ThumbnailData struct {
 
 func (m *MediaAPI) GetAllThumbnails() ([]ThumbnailData, error) {
 	ctx := context.Background()
-	data, err := m.ImageService.Meta.ListImages(ctx)
+
+	records, err := m.ImageService.Meta.ListImages(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var thumbnails []ThumbnailData
-	for _, d := range data {
-		tmbn, err := m.GetThumbnailBase64(d.ID)
-		if err == nil {
-			thumbnails = append(thumbnails, ThumbnailData{
-				ID:    d.ID,
-				Image: tmbn,
-			})
+	thumbnails := make([]ThumbnailData, 0, len(records))
+	for _, record := range records {
+		tmbn, err := m.GetThumbnailBase64(record.ID)
+		if err != nil {
+			continue // Skip images we can't get thumbnails for
 		}
+		thumbnails = append(thumbnails, ThumbnailData{
+			ID:    record.ID,
+			Image: tmbn,
+		})
 	}
 	return thumbnails, nil
+}
+
+// Album-related wrappers
+
+func (m *MediaAPI) CreateAlbumIfMissing(name string) (string, error) {
+	ctx := context.Background()
+	return m.AlbumService.CreateIfMissing(ctx, name)
+}
+
+func (m *MediaAPI) AddImageToAlbum(imageID, albumName string) error {
+	ctx := context.Background()
+	return m.AlbumService.AddImage(ctx, imageID, albumName)
+}
+
+func (m *MediaAPI) ListAllAlbums() ([]metadata.SelectAllAlbumsWithImageCountRow, error) {
+	ctx := context.Background()
+	return m.AlbumService.ListAll(ctx)
+}
+
+func (m *MediaAPI) ListImagesInAlbum(albumName string) ([]metadata.Image, error) {
+	ctx := context.Background()
+	return m.AlbumService.ListImages(ctx, albumName)
+}
+
+// ListAlbumNamesForImage returns the names of albums an image belongs to
+func (m MediaAPI) ListAlbumNamesForImage(imageID string) ([]string, error) {
+	ctx := context.Background()
+	return m.AlbumService.ListAlbumNamesByImage(ctx, imageID)
+}
+
+// ListAlbumIDsForImage returns the IDs of albums an image belongs to
+func (m *MediaAPI) ListAlbumIDsForImage(imageID string) ([]string, error) {
+	ctx := context.Background()
+	return m.AlbumService.ListAlbumIDsByImage(ctx, imageID)
+}
+
+// MIME type handling
+
+func (m *MediaAPI) ResolveOrCreateMimeType(mimeType string) (int64, error) {
+	ctx := context.Background()
+	return m.ImageService.ResolveOrCreateMimeType(ctx, mimeType)
+}
+
+// Tagging wrappers
+
+func (m *MediaAPI) CreateTag(name string) (string, error) {
+	ctx := context.Background()
+	return m.ImageService.Tags.CreateTag(ctx, name)
+}
+
+func (m *MediaAPI) TagImage(imageID, tagName string) error {
+	ctx := context.Background()
+	return m.ImageService.Tags.TagImage(ctx, imageID, tagName)
+}
+
+func (m *MediaAPI) GetTagsForImage(imageID string) ([]string, error) {
+	ctx := context.Background()
+	return m.ImageService.Tags.GetTagsForImage(ctx, imageID)
+
+}
+
+func (m *MediaAPI) GetImagesWithTag(tagName string) ([]string, error) {
+	ctx := context.Background()
+	return m.ImageService.Tags.GetImagesWithTag(ctx, tagName)
 }

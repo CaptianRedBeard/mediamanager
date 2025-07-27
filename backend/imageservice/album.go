@@ -32,7 +32,7 @@ func (s *AlbumService) CreateIfMissing(ctx context.Context, name string) (string
 		ID:          id,
 		Name:        name,
 		Description: sql.NullString{String: "", Valid: false},
-		Private:     sql.NullInt64{Int64: 0, Valid: true},
+		Private:     false,
 	})
 	if err != nil {
 		return "", err
@@ -65,4 +65,29 @@ func (s *AlbumService) ListImages(ctx context.Context, albumName string) ([]meta
 		return nil, err
 	}
 	return s.queries.SelectImagesByAlbumID(ctx, album.ID)
+}
+
+func (s *AlbumService) ListAlbumIDsByImage(ctx context.Context, imageID string) ([]string, error) {
+	albums, err := s.queries.SelectAlbumsByImageID(ctx, imageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list album IDs for image %s: %w", imageID, err)
+	}
+
+	ids := make([]string, len(albums))
+	for i, album := range albums {
+		ids[i] = album.ID
+	}
+	return ids, nil
+}
+func (s *AlbumService) ListAlbumNamesByImage(ctx context.Context, imageID string) ([]string, error) {
+	albums, err := s.queries.SelectAlbumsByImageID(ctx, imageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list album names for image %s: %w", imageID, err)
+	}
+
+	names := make([]string, len(albums))
+	for i, album := range albums {
+		names[i] = album.Name
+	}
+	return names, nil
 }

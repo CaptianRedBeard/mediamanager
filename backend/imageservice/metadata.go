@@ -165,3 +165,10 @@ func (m *MetadataService) ListImages(ctx context.Context) ([]ImageSummary, error
 
 	return out, nil
 }
+
+func formatNullTime(nt sql.NullTime) string {
+	if nt.Valid {
+		return nt.Time.Format(time.RFC3339)
+	}
+	return ""
+}

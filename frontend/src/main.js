@@ -1,8 +1,15 @@
 import '../wailsjs/runtime/runtime';
 import './style.css';
 import './app.css';
-import { ImportImage, GetAllThumbnails, GetImageBase64 } from '../wailsjs/go/mediaapi/MediaAPI';
-
+import {
+  ImportImage,
+  GetAllThumbnails,
+  GetImageBase64,
+  GetTagsForImage,
+  TagImage,
+  AddImageToAlbum,
+  ListAlbumNamesForImage,
+} from '../wailsjs/go/mediaapi/MediaAPI';
 
 
 console.log("✅ Wails runtime loaded");
@@ -36,12 +43,14 @@ const routes = {
     <div id="imageViewer" style="margin-top: 20px;"></div>
     <div id="thumbnailGallery" style="display: flex; flex-wrap: wrap; gap: 12px;"></div>
   `,
-  imgedit:`
-    <h1>Gallery</h1>
-    <button id="menu">Back To Menu</button>
-    <button id="goToGallery">Gallery</button>
-    <div id="imageViewer" style="margin-top: 20px;"></div>
-  `,
+  imgedit: `
+  <h1>Image Editor</h1>
+  <button id="menu">Back To Menu</button>
+  <button id="goToGallery">Gallery</button>
+  <div id="imageViewer" style="margin-top: 20px;"></div>
+  <div id="tagSection" style="margin-top: 20px;"></div>
+  <div id="albumSection" style="margin-top: 20px;"></div>
+`,
 
     
 };
@@ -185,7 +194,94 @@ function navigateTo(route) {
     } else {
       viewer.innerHTML = "<p>No image selected from gallery.</p>";
     }
+
+    const renderAlbums = async () => {
+      const albumContainer = document.getElementById("albumSection");
+      albumContainer.innerHTML = "<p>Loading Albums</p>";
+
+      try {
+        const albums = await ListAlbumNamesForImage(selectedImageId);
+        console.log("albums:", albums)
+        albumContainer.innerHTML =`
+          <h3>Albums</h3>
+          <ul>
+            ${albums.map(album=>`
+              <li>
+                ${album}
+                <button data-album="${album}" class="remove-album">❌</button>
+              </li>`).join("")}
+           </ul>
+          <input id="newAlbum" placeholder="New tag" />
+          <button id="addAlbum">Add Tag</button> 
+        `;
+
+        document.getElementById("addAlbum").addEventListener("click", async () => {
+          const newAlbum = document.getElementById("newAlbum").value.trim();
+          if (newAlbum) {
+            await AddImageToAlbum(selectedImageId, newAlbum);
+            renderAlbums();
+          }
+        });
+
+        document.querySelectorAll(".remove-album").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            await RemoveAlbumFromImage(selectedImageId, btn.dataset.album);
+            renderTags();
+          });
+        });
+      } catch (err) {
+        console.error("❌ Error in GetAlbumsForImage", err);
+        tagContainer.innerHTML = `<p>Error loading albums: ${err.message}</p>`;
+      }
+    }
+
+    renderAlbums()
+
+
+    const renderTags = async () => {
+      const tagContainer = document.getElementById("tagSection");
+      tagContainer.innerHTML = "<p>Loading Tags</p>";
+
+      try {
+        const tags = await GetTagsForImage(selectedImageId);
+        console.log("tags:", tags)
+        tagContainer.innerHTML =`
+          <h3>Tags</h3>
+          <ul>
+            ${tags.map(tag=>`
+              <li>
+                ${tag}
+                <button data-tag="${tag}" class="remove-tag">❌</button>
+              </li>`).join("")}
+           </ul>
+          <input id="newTag" placeholder="New tag" />
+          <button id="addTag">Add Tag</button> 
+        `;
+
+        document.getElementById("addTag").addEventListener("click", async () => {
+          const newTag = document.getElementById("newTag").value.trim();
+          if (newTag) {
+            await TagImage(selectedImageId, newTag);
+            renderTags();
+          }
+        });
+
+        document.querySelectorAll(".remove-tag").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            await RemoveTagFromImage(selectedImageId, btn.dataset.tag);
+            renderTags();
+          });
+        });
+      } catch (err) {
+        console.error("❌ Error in GetDetailedTagsForImage", err);
+        tagContainer.innerHTML = `<p>Error loading tags: ${err.message}</p>`;
+      }
+    }
+
+    renderTags()
   }
+
+  
 }
 
 window.addEventListener('DOMContentLoaded', () => {

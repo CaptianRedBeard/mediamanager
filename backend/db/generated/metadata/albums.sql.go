@@ -45,7 +45,7 @@ type InsertAlbumParams struct {
 	ID          string
 	Name        string
 	Description sql.NullString
-	Private     sql.NullInt64
+	Private     bool
 }
 
 // ALBUMS --
@@ -179,7 +179,7 @@ type SelectAllAlbumsWithImageCountRow struct {
 	ID          string
 	Name        string
 	Description sql.NullString
-	Private     sql.NullInt64
+	Private     bool
 	CreatedAt   sql.NullTime
 	EditedAt    sql.NullTime
 	ImageCount  int64
@@ -282,7 +282,7 @@ type SelectPublicAlbumsWithImageCountRow struct {
 	ID          string
 	Name        string
 	Description sql.NullString
-	Private     sql.NullInt64
+	Private     bool
 	CreatedAt   sql.NullTime
 	EditedAt    sql.NullTime
 	ImageCount  int64
@@ -328,7 +328,7 @@ WHERE id = ?
 type UpdateAlbumByIDParams struct {
 	Name        string
 	Description sql.NullString
-	Private     sql.NullInt64
+	Private     bool
 	ID          string
 }
 

@@ -18,7 +18,7 @@ CREATE TABLE albums (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    private INTEGER DEFAULT 0, -- 0 = public, 1 = private
+    private BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     edited_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,15 +32,13 @@ CREATE TABLE image_album (
     FOREIGN KEY (album_id) REFERENCES albums(id)
 );
 
-
 CREATE TABLE tags (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    private INTEGER DEFAULT 0, -- 0 = public, 1 = private
+    private BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     edited_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 
 CREATE TABLE image_tag (
     image_id TEXT NOT NULL,
