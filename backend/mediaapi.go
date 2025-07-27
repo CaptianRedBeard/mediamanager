@@ -16,7 +16,11 @@ func NewMediaAPI(service *imageservice.ImageService) *MediaAPI {
 }
 
 func (m *MediaAPI) GetImageBase64(id string) (string, error) {
-	data, mime, err := m.ImageService.GetImageBlobByID(context.Background(), id)
+	data, err := m.ImageService.Blobs.Get(context.Background(), id)
+	if err != nil {
+		return "", err
+	}
+	mime, err := m.ImageService.Meta.SelectMimeTypeByImageID(context.Background(), id)
 	if err != nil {
 		return "", err
 	}
@@ -25,7 +29,7 @@ func (m *MediaAPI) GetImageBase64(id string) (string, error) {
 }
 
 func (m *MediaAPI) GetThumbnailBase64(id string) (string, error) {
-	data, mime, err := m.ImageService.GetThumbnailByID(context.Background(), id)
+	data, mime, err := m.ImageService.Meta.GetThumbnailAndMime(context.Background(), id)
 	if err != nil {
 		return "", err
 	}

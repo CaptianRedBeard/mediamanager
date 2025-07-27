@@ -10,76 +10,119 @@ import (
 	"database/sql"
 )
 
-const addImageToTag = `-- name: AddImageToTag :exec
+const deleteImageTagRelation = `-- name: DeleteImageTagRelation :exec
+DELETE FROM image_tag
+WHERE image_id = ? AND tag_id = ?
+`
+
+type DeleteImageTagRelationParams struct {
+	ImageID string
+	TagID   string
+}
+
+func (q *Queries) DeleteImageTagRelation(ctx context.Context, arg DeleteImageTagRelationParams) error {
+	_, err := q.db.ExecContext(ctx, deleteImageTagRelation, arg.ImageID, arg.TagID)
+	return err
+}
+
+const deleteTagByID = `-- name: DeleteTagByID :exec
+DELETE FROM tags
+WHERE id = ?
+`
+
+func (q *Queries) DeleteTagByID(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteTagByID, id)
+	return err
+}
+
+const insertImageTagRelation = `-- name: InsertImageTagRelation :exec
+
 INSERT INTO image_tag (image_id, tag_id)
 VALUES (?, ?)
 ON CONFLICT(image_id, tag_id) DO NOTHING
 `
 
-type AddImageToTagParams struct {
+type InsertImageTagRelationParams struct {
 	ImageID string
 	TagID   string
 }
 
-func (q *Queries) AddImageToTag(ctx context.Context, arg AddImageToTagParams) error {
-	_, err := q.db.ExecContext(ctx, addImageToTag, arg.ImageID, arg.TagID)
+// IMAGE_TAG (Linking Images to Tags) --
+func (q *Queries) InsertImageTagRelation(ctx context.Context, arg InsertImageTagRelationParams) error {
+	_, err := q.db.ExecContext(ctx, insertImageTagRelation, arg.ImageID, arg.TagID)
 	return err
 }
 
-const createTag = `-- name: CreateTag :exec
+const insertTag = `-- name: InsertTag :exec
+
 INSERT INTO tags (id, name, private)
 VALUES (?, ?, ?)
 `
 
-type CreateTagParams struct {
+type InsertTagParams struct {
 	ID      string
 	Name    string
 	Private sql.NullInt64
 }
 
-func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) error {
-	_, err := q.db.ExecContext(ctx, createTag, arg.ID, arg.Name, arg.Private)
+// TAGS --
+func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) error {
+	_, err := q.db.ExecContext(ctx, insertTag, arg.ID, arg.Name, arg.Private)
 	return err
 }
 
-const deleteTag = `-- name: DeleteTag :exec
-DELETE FROM tags
-WHERE id = ?
+const selectAllTags = `-- name: SelectAllTags :many
+SELECT id, name, private, created_at, edited_at
+FROM tags
+ORDER BY created_at DESC
 `
 
-func (q *Queries) DeleteTag(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteTag, id)
-	return err
+func (q *Queries) SelectAllTags(ctx context.Context) ([]Tag, error) {
+	rows, err := q.db.QueryContext(ctx, selectAllTags)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tag
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Private,
+			&i.CreatedAt,
+			&i.EditedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-const getTag = `-- name: GetTag :one
-SELECT id, name, private, created_at, edited_at FROM tags
-WHERE id = ?
+const selectImagesByTagID = `-- name: SelectImagesByTagID :many
+SELECT
+    i.id,
+    i.filename,
+    i.mime_type_id,
+    i.thumbnail,
+    i.hash,
+    i.created_at,
+    i.edited_at
+FROM images i
+JOIN image_tag it ON i.id = it.image_id
+WHERE it.tag_id = ?
+ORDER BY i.created_at DESC
 `
 
-func (q *Queries) GetTag(ctx context.Context, id string) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, getTag, id)
-	var i Tag
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Private,
-		&i.CreatedAt,
-		&i.EditedAt,
-	)
-	return i, err
-}
-
-const listImagesForTag = `-- name: ListImagesForTag :many
-SELECT images.id, images.filename, images.mime_type_id, images.thumbnail, images.hash, images.created_at, images.edited_at
-FROM images
-JOIN image_tag ON images.id = image_tag.image_id
-WHERE image_tag.tag_id = ?
-ORDER BY images.created_at DESC
-`
-
-func (q *Queries) ListImagesForTag(ctx context.Context, tagID string) ([]Image, error) {
-	rows, err := q.db.QueryContext(ctx, listImagesForTag, tagID)
+func (q *Queries) SelectImagesByTagID(ctx context.Context, tagID string) ([]Image, error) {
+	rows, err := q.db.QueryContext(ctx, selectImagesByTagID, tagID)
 	if err != nil {
 		return nil, err
 	}
@@ -109,50 +152,59 @@ func (q *Queries) ListImagesForTag(ctx context.Context, tagID string) ([]Image, 
 	return items, nil
 }
 
-const listTags = `-- name: ListTags :many
-SELECT id, name, private, created_at, edited_at FROM tags
-ORDER BY created_at DESC
-`
-
-func (q *Queries) ListTags(ctx context.Context) ([]Tag, error) {
-	rows, err := q.db.QueryContext(ctx, listTags)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Tag
-	for rows.Next() {
-		var i Tag
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Private,
-			&i.CreatedAt,
-			&i.EditedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listTagsForImage = `-- name: ListTagsForImage :many
-SELECT tags.id, tags.name, tags.private, tags.created_at, tags.edited_at
+const selectTagByID = `-- name: SelectTagByID :one
+SELECT id, name, private, created_at, edited_at
 FROM tags
-JOIN image_tag ON tags.id = image_tag.tag_id
-WHERE image_tag.image_id = ?
-ORDER BY tags.created_at DESC
+WHERE id = ?
 `
 
-func (q *Queries) ListTagsForImage(ctx context.Context, imageID string) ([]Tag, error) {
-	rows, err := q.db.QueryContext(ctx, listTagsForImage, imageID)
+func (q *Queries) SelectTagByID(ctx context.Context, id string) (Tag, error) {
+	row := q.db.QueryRowContext(ctx, selectTagByID, id)
+	var i Tag
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Private,
+		&i.CreatedAt,
+		&i.EditedAt,
+	)
+	return i, err
+}
+
+const selectTagByName = `-- name: SelectTagByName :one
+SELECT id, name, private, created_at, edited_at
+FROM tags
+WHERE name = ?
+`
+
+func (q *Queries) SelectTagByName(ctx context.Context, name string) (Tag, error) {
+	row := q.db.QueryRowContext(ctx, selectTagByName, name)
+	var i Tag
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Private,
+		&i.CreatedAt,
+		&i.EditedAt,
+	)
+	return i, err
+}
+
+const selectTagsByImageID = `-- name: SelectTagsByImageID :many
+SELECT
+    t.id,
+    t.name,
+    t.private,
+    t.created_at,
+    t.edited_at
+FROM tags t
+JOIN image_tag it ON t.id = it.tag_id
+WHERE it.image_id = ?
+ORDER BY t.created_at DESC
+`
+
+func (q *Queries) SelectTagsByImageID(ctx context.Context, imageID string) ([]Tag, error) {
+	rows, err := q.db.QueryContext(ctx, selectTagsByImageID, imageID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,22 +232,7 @@ func (q *Queries) ListTagsForImage(ctx context.Context, imageID string) ([]Tag, 
 	return items, nil
 }
 
-const removeImageFromTag = `-- name: RemoveImageFromTag :exec
-DELETE FROM image_tag
-WHERE image_id = ? AND tag_id = ?
-`
-
-type RemoveImageFromTagParams struct {
-	ImageID string
-	TagID   string
-}
-
-func (q *Queries) RemoveImageFromTag(ctx context.Context, arg RemoveImageFromTagParams) error {
-	_, err := q.db.ExecContext(ctx, removeImageFromTag, arg.ImageID, arg.TagID)
-	return err
-}
-
-const updateTag = `-- name: UpdateTag :exec
+const updateTagByID = `-- name: UpdateTagByID :exec
 UPDATE tags
 SET name = ?,
     private = ?,
@@ -203,13 +240,13 @@ SET name = ?,
 WHERE id = ?
 `
 
-type UpdateTagParams struct {
+type UpdateTagByIDParams struct {
 	Name    string
 	Private sql.NullInt64
 	ID      string
 }
 
-func (q *Queries) UpdateTag(ctx context.Context, arg UpdateTagParams) error {
-	_, err := q.db.ExecContext(ctx, updateTag, arg.Name, arg.Private, arg.ID)
+func (q *Queries) UpdateTagByID(ctx context.Context, arg UpdateTagByIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateTagByID, arg.Name, arg.Private, arg.ID)
 	return err
 }

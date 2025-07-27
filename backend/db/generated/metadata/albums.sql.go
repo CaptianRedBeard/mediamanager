@@ -10,30 +10,38 @@ import (
 	"database/sql"
 )
 
-const addImageToAlbum = `-- name: AddImageToAlbum :exec
-
-INSERT INTO image_album (image_id, album_id)
-VALUES (?, ?)
+const deleteAlbumByID = `-- name: DeleteAlbumByID :exec
+DELETE FROM albums
+WHERE id = ?
 `
 
-type AddImageToAlbumParams struct {
+func (q *Queries) DeleteAlbumByID(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteAlbumByID, id)
+	return err
+}
+
+const deleteImageAlbumRelation = `-- name: DeleteImageAlbumRelation :exec
+DELETE FROM image_album
+WHERE image_id = ? AND album_id = ?
+`
+
+type DeleteImageAlbumRelationParams struct {
 	ImageID string
 	AlbumID string
 }
 
-// IMAGE_ALBUM --
-func (q *Queries) AddImageToAlbum(ctx context.Context, arg AddImageToAlbumParams) error {
-	_, err := q.db.ExecContext(ctx, addImageToAlbum, arg.ImageID, arg.AlbumID)
+func (q *Queries) DeleteImageAlbumRelation(ctx context.Context, arg DeleteImageAlbumRelationParams) error {
+	_, err := q.db.ExecContext(ctx, deleteImageAlbumRelation, arg.ImageID, arg.AlbumID)
 	return err
 }
 
-const createAlbum = `-- name: CreateAlbum :exec
+const insertAlbum = `-- name: InsertAlbum :exec
 
 INSERT INTO albums (id, name, description, private)
 VALUES (?, ?, ?, ?)
 `
 
-type CreateAlbumParams struct {
+type InsertAlbumParams struct {
 	ID          string
 	Name        string
 	Description sql.NullString
@@ -41,8 +49,8 @@ type CreateAlbumParams struct {
 }
 
 // ALBUMS --
-func (q *Queries) CreateAlbum(ctx context.Context, arg CreateAlbumParams) error {
-	_, err := q.db.ExecContext(ctx, createAlbum,
+func (q *Queries) InsertAlbum(ctx context.Context, arg InsertAlbumParams) error {
+	_, err := q.db.ExecContext(ctx, insertAlbum,
 		arg.ID,
 		arg.Name,
 		arg.Description,
@@ -51,24 +59,31 @@ func (q *Queries) CreateAlbum(ctx context.Context, arg CreateAlbumParams) error 
 	return err
 }
 
-const deleteAlbum = `-- name: DeleteAlbum :exec
-DELETE FROM albums
-WHERE id = ?
+const insertImageAlbumRelation = `-- name: InsertImageAlbumRelation :exec
+
+INSERT INTO image_album (image_id, album_id)
+VALUES (?, ?)
 `
 
-func (q *Queries) DeleteAlbum(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteAlbum, id)
+type InsertImageAlbumRelationParams struct {
+	ImageID string
+	AlbumID string
+}
+
+// IMAGE_ALBUM (Linking Images to Albums) --
+func (q *Queries) InsertImageAlbumRelation(ctx context.Context, arg InsertImageAlbumRelationParams) error {
+	_, err := q.db.ExecContext(ctx, insertImageAlbumRelation, arg.ImageID, arg.AlbumID)
 	return err
 }
 
-const getAlbum = `-- name: GetAlbum :one
+const selectAlbumByID = `-- name: SelectAlbumByID :one
 SELECT id, name, description, private, created_at, edited_at
 FROM albums
 WHERE id = ?
 `
 
-func (q *Queries) GetAlbum(ctx context.Context, id string) (Album, error) {
-	row := q.db.QueryRowContext(ctx, getAlbum, id)
+func (q *Queries) SelectAlbumByID(ctx context.Context, id string) (Album, error) {
+	row := q.db.QueryRowContext(ctx, selectAlbumByID, id)
 	var i Album
 	err := row.Scan(
 		&i.ID,
@@ -81,43 +96,27 @@ func (q *Queries) GetAlbum(ctx context.Context, id string) (Album, error) {
 	return i, err
 }
 
-const listAlbums = `-- name: ListAlbums :many
+const selectAlbumByName = `-- name: SelectAlbumByName :one
 SELECT id, name, description, private, created_at, edited_at
 FROM albums
-ORDER BY created_at DESC
+WHERE name = ?
 `
 
-func (q *Queries) ListAlbums(ctx context.Context) ([]Album, error) {
-	rows, err := q.db.QueryContext(ctx, listAlbums)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Album
-	for rows.Next() {
-		var i Album
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Description,
-			&i.Private,
-			&i.CreatedAt,
-			&i.EditedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) SelectAlbumByName(ctx context.Context, name string) (Album, error) {
+	row := q.db.QueryRowContext(ctx, selectAlbumByName, name)
+	var i Album
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Private,
+		&i.CreatedAt,
+		&i.EditedAt,
+	)
+	return i, err
 }
 
-const listAlbumsForImage = `-- name: ListAlbumsForImage :many
+const selectAlbumsByImageID = `-- name: SelectAlbumsByImageID :many
 SELECT
     a.id,
     a.name,
@@ -131,8 +130,8 @@ WHERE ia.image_id = ?
 ORDER BY ia.created_at DESC
 `
 
-func (q *Queries) ListAlbumsForImage(ctx context.Context, imageID string) ([]Album, error) {
-	rows, err := q.db.QueryContext(ctx, listAlbumsForImage, imageID)
+func (q *Queries) SelectAlbumsByImageID(ctx context.Context, imageID string) ([]Album, error) {
+	rows, err := q.db.QueryContext(ctx, selectAlbumsByImageID, imageID)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +160,63 @@ func (q *Queries) ListAlbumsForImage(ctx context.Context, imageID string) ([]Alb
 	return items, nil
 }
 
-const listImagesInAlbum = `-- name: ListImagesInAlbum :many
+const selectAllAlbumsWithImageCount = `-- name: SelectAllAlbumsWithImageCount :many
+SELECT
+    a.id,
+    a.name,
+    a.description,
+    a.private,
+    a.created_at,
+    a.edited_at,
+    COUNT(ia.image_id) AS image_count
+FROM albums a
+LEFT JOIN image_album ia ON a.id = ia.album_id
+GROUP BY a.id
+ORDER BY a.created_at DESC
+`
+
+type SelectAllAlbumsWithImageCountRow struct {
+	ID          string
+	Name        string
+	Description sql.NullString
+	Private     sql.NullInt64
+	CreatedAt   sql.NullTime
+	EditedAt    sql.NullTime
+	ImageCount  int64
+}
+
+func (q *Queries) SelectAllAlbumsWithImageCount(ctx context.Context) ([]SelectAllAlbumsWithImageCountRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectAllAlbumsWithImageCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectAllAlbumsWithImageCountRow
+	for rows.Next() {
+		var i SelectAllAlbumsWithImageCountRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Private,
+			&i.CreatedAt,
+			&i.EditedAt,
+			&i.ImageCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectImagesByAlbumID = `-- name: SelectImagesByAlbumID :many
 SELECT
     i.id,
     i.filename,
@@ -176,8 +231,8 @@ WHERE ia.album_id = ?
 ORDER BY ia.created_at DESC
 `
 
-func (q *Queries) ListImagesInAlbum(ctx context.Context, albumID string) ([]Image, error) {
-	rows, err := q.db.QueryContext(ctx, listImagesInAlbum, albumID)
+func (q *Queries) SelectImagesByAlbumID(ctx context.Context, albumID string) ([]Image, error) {
+	rows, err := q.db.QueryContext(ctx, selectImagesByAlbumID, albumID)
 	if err != nil {
 		return nil, err
 	}
@@ -207,23 +262,41 @@ func (q *Queries) ListImagesInAlbum(ctx context.Context, albumID string) ([]Imag
 	return items, nil
 }
 
-const listPublicAlbums = `-- name: ListPublicAlbums :many
-SELECT id, name, description, private, created_at, edited_at
-FROM albums
-WHERE private = 0
-ORDER BY created_at DESC
+const selectPublicAlbumsWithImageCount = `-- name: SelectPublicAlbumsWithImageCount :many
+SELECT
+    a.id,
+    a.name,
+    a.description,
+    a.private,
+    a.created_at,
+    a.edited_at,
+    COUNT(ia.image_id) AS image_count
+FROM albums a
+LEFT JOIN image_album ia ON a.id = ia.album_id
+WHERE a.private = 0
+GROUP BY a.id
+ORDER BY a.created_at DESC
 `
 
-// Optional: List only public albums (private = 0)
-func (q *Queries) ListPublicAlbums(ctx context.Context) ([]Album, error) {
-	rows, err := q.db.QueryContext(ctx, listPublicAlbums)
+type SelectPublicAlbumsWithImageCountRow struct {
+	ID          string
+	Name        string
+	Description sql.NullString
+	Private     sql.NullInt64
+	CreatedAt   sql.NullTime
+	EditedAt    sql.NullTime
+	ImageCount  int64
+}
+
+func (q *Queries) SelectPublicAlbumsWithImageCount(ctx context.Context) ([]SelectPublicAlbumsWithImageCountRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectPublicAlbumsWithImageCount)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Album
+	var items []SelectPublicAlbumsWithImageCountRow
 	for rows.Next() {
-		var i Album
+		var i SelectPublicAlbumsWithImageCountRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -231,6 +304,7 @@ func (q *Queries) ListPublicAlbums(ctx context.Context) ([]Album, error) {
 			&i.Private,
 			&i.CreatedAt,
 			&i.EditedAt,
+			&i.ImageCount,
 		); err != nil {
 			return nil, err
 		}
@@ -245,36 +319,21 @@ func (q *Queries) ListPublicAlbums(ctx context.Context) ([]Album, error) {
 	return items, nil
 }
 
-const removeImageFromAlbum = `-- name: RemoveImageFromAlbum :exec
-DELETE FROM image_album
-WHERE image_id = ? AND album_id = ?
-`
-
-type RemoveImageFromAlbumParams struct {
-	ImageID string
-	AlbumID string
-}
-
-func (q *Queries) RemoveImageFromAlbum(ctx context.Context, arg RemoveImageFromAlbumParams) error {
-	_, err := q.db.ExecContext(ctx, removeImageFromAlbum, arg.ImageID, arg.AlbumID)
-	return err
-}
-
-const updateAlbum = `-- name: UpdateAlbum :exec
+const updateAlbumByID = `-- name: UpdateAlbumByID :exec
 UPDATE albums
 SET name = ?, description = ?, private = ?, edited_at = CURRENT_TIMESTAMP
 WHERE id = ?
 `
 
-type UpdateAlbumParams struct {
+type UpdateAlbumByIDParams struct {
 	Name        string
 	Description sql.NullString
 	Private     sql.NullInt64
 	ID          string
 }
 
-func (q *Queries) UpdateAlbum(ctx context.Context, arg UpdateAlbumParams) error {
-	_, err := q.db.ExecContext(ctx, updateAlbum,
+func (q *Queries) UpdateAlbumByID(ctx context.Context, arg UpdateAlbumByIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateAlbumByID,
 		arg.Name,
 		arg.Description,
 		arg.Private,
