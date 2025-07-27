@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Upload Images</title>
-  <script type="module" crossorigin src="/assets/upload-CQaOef-K.js"></script>
+  <script type="module" crossorigin src="/assets/upload-C5SXflEL.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/upload-Ci5Y8nIr.css">
   <link rel="stylesheet" crossorigin href="/assets/style-D-Viemb0.css">
 </head>
@@ -13,8 +13,14 @@
     <input type="file" name="image" id="imageInput" multiple />
     <button type="submit">Upload</button>
   </form>
-
+  <ul id="uploadResults"></ul>
   <div id="uploadStatus"></div>
 
+  <button id="menu">Back To Menu</button>
+  <script>
+    document.getElementById("menu").addEventListener("click", () => {
+      window.location.href = "/index.html";
+    });
+  </script>
 </body>
 </html>
