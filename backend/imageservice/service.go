@@ -6,7 +6,7 @@ type ImageService struct {
 	Importer *Importer
 }
 
-func New(blobs *BlobService, meta *MetadataService, assetsDir string) *ImageService {
+func New(blobs *BlobService, meta *MetadataService) *ImageService {
 	return &ImageService{
 		Blobs:    blobs,
 		Meta:     meta,

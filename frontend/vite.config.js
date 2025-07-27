@@ -7,8 +7,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         // Entry points for both the homepage and the upload page
-        main: './index.html',
-        upload: './upload.html'
+        main: './index.html'
       }
     }
   }
