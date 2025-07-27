@@ -1,7 +1,8 @@
 import '../wailsjs/runtime/runtime';
 import './style.css';
 import './app.css';
-import { ImportImage } from '../wailsjs/go/mediaapi/MediaAPI';
+import { ImportImage, GetAllThumbnails } from '../wailsjs/go/mediaapi/MediaAPI';
+
 
 
 console.log("✅ Wails runtime loaded");
@@ -16,6 +17,7 @@ const routes = {
   home: `
     <h1>Welcome to Media Manager</h1>
     <button id="goToUpload">Upload Images</button>
+    <button id= "goToGallery">Gallery</button>
   `,
   upload: `
     <h1>Upload Images</h1>
@@ -26,7 +28,12 @@ const routes = {
     <ul id="uploadResults"></ul>
     <div id="uploadStatus"></div>
     <button id="menu">Back To Menu</button>
-  `
+  `,
+  gallery:`
+    <h1>Gallery</h1>
+    <button id="menu">Back To Menu</button>
+    `
+    
 };
 
 function navigateTo(route) {
@@ -37,6 +44,9 @@ function navigateTo(route) {
     document.getElementById("goToUpload").addEventListener("click", () => {
       navigateTo("upload");
     });
+    document.getElementById("goToGallery").addEventListener("click", () => {
+      navigateTo("gallery");
+    })
   }
 
   if (route === "upload") {
@@ -67,6 +77,38 @@ function navigateTo(route) {
         }
       }
     });
+  }
+
+  if (route == "gallery") {
+    document.getElementById("menu").addEventListener("click", () => {
+      navigateTo("home");
+    });
+
+    const galleryContainer = document.createElement("div");
+    galleryContainer.id = "thumbnailGallery";
+    galleryContainer.style.display = "flex";
+    galleryContainer.style.flexWrap = "wrap";
+    galleryContainer.style.gap = "12px";
+
+    document.getElementById("app").appendChild(galleryContainer);
+
+    (async () => {
+      try {
+        const thumbnails = await GetAllThumbnails();
+        for (const base64 of thumbnails) {
+          const img = document.createElement("img");
+          img.src = base64;
+          img.alt = `Thumbnail`;
+          img.style.width = "150px";
+          img.style.height = "150px";
+          img.style.objectFit = "cover";
+  
+          galleryContainer.appendChild(img);
+        }
+      } catch (err) {
+        console.error("Failed to load thumbnails", err);
+      }
+    })();
   }
 }
 
