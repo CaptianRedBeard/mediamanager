@@ -7,7 +7,6 @@ package metadata
 
 import (
 	"context"
-	"database/sql"
 )
 
 const deleteImageTagRelation = `-- name: DeleteImageTagRelation :exec
@@ -62,7 +61,7 @@ VALUES (?, ?, ?)
 type InsertTagParams struct {
 	ID      string
 	Name    string
-	Private sql.NullInt64
+	Private bool
 }
 
 // TAGS --
@@ -242,7 +241,7 @@ WHERE id = ?
 
 type UpdateTagByIDParams struct {
 	Name    string
-	Private sql.NullInt64
+	Private bool
 	ID      string
 }
 

@@ -31,7 +31,7 @@ func (s *TagService) CreateTag(ctx context.Context, name string) (string, error)
 	err = s.q.InsertTag(ctx, metadata.InsertTagParams{
 		ID:      id,
 		Name:    name,
-		Private: sql.NullInt64{Int64: 0, Valid: true},
+		Private: false,
 	})
 	if err != nil {
 		return "", fmt.Errorf("insert tag: %w", err)

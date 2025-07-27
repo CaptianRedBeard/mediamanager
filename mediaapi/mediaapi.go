@@ -126,6 +126,18 @@ func (m *MediaAPI) ListImagesInAlbum(albumName string) ([]metadata.Image, error)
 	return m.AlbumService.ListImages(ctx, albumName)
 }
 
+// ListAlbumNamesForImage returns the names of albums an image belongs to
+func (m MediaAPI) ListAlbumNamesForImage(imageID string) ([]string, error) {
+	ctx := context.Background()
+	return m.AlbumService.ListAlbumNamesByImage(ctx, imageID)
+}
+
+// ListAlbumIDsForImage returns the IDs of albums an image belongs to
+func (m *MediaAPI) ListAlbumIDsForImage(imageID string) ([]string, error) {
+	ctx := context.Background()
+	return m.AlbumService.ListAlbumIDsByImage(ctx, imageID)
+}
+
 // MIME type handling
 
 func (m *MediaAPI) ResolveOrCreateMimeType(mimeType string) (int64, error) {
@@ -148,6 +160,7 @@ func (m *MediaAPI) TagImage(imageID, tagName string) error {
 func (m *MediaAPI) GetTagsForImage(imageID string) ([]string, error) {
 	ctx := context.Background()
 	return m.ImageService.Tags.GetTagsForImage(ctx, imageID)
+
 }
 
 func (m *MediaAPI) GetImagesWithTag(tagName string) ([]string, error) {

@@ -12,7 +12,7 @@ type Album struct {
 	ID          string
 	Name        string
 	Description sql.NullString
-	Private     sql.NullInt64
+	Private     bool
 	CreatedAt   sql.NullTime
 	EditedAt    sql.NullTime
 }
@@ -47,7 +47,7 @@ type MimeType struct {
 type Tag struct {
 	ID        string
 	Name      string
-	Private   sql.NullInt64
+	Private   bool
 	CreatedAt sql.NullTime
 	EditedAt  sql.NullTime
 }
