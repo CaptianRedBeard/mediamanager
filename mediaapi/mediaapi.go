@@ -55,3 +55,28 @@ func (m *MediaAPI) ImportImage(filename string, fileBytes []byte) (string, error
 	ctx := context.Background()
 	return m.ImageService.Importer.ImportImage(ctx, filename, fileBytes)
 }
+
+type ThumbnailData struct {
+	ID    string `json:"id"`
+	Image string `json:"image"`
+}
+
+func (m *MediaAPI) GetAllThumbnails() ([]ThumbnailData, error) {
+	ctx := context.Background()
+	data, err := m.ImageService.Meta.ListImages(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var thumbnails []ThumbnailData
+	for _, d := range data {
+		tmbn, err := m.GetThumbnailBase64(d.ID)
+		if err == nil {
+			thumbnails = append(thumbnails, ThumbnailData{
+				ID:    d.ID,
+				Image: tmbn,
+			})
+		}
+	}
+	return thumbnails, nil
+}
