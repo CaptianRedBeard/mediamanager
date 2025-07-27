@@ -7,52 +7,28 @@ package metadata
 
 import (
 	"context"
-	"database/sql"
 )
 
-const createMimeType = `-- name: CreateMimeType :execresult
+const insertMimeType = `-- name: InsertMimeType :exec
+
 INSERT INTO mime_types (mime)
 VALUES (?)
 `
 
-func (q *Queries) CreateMimeType(ctx context.Context, mime string) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createMimeType, mime)
+// MIME TYPES --
+func (q *Queries) InsertMimeType(ctx context.Context, mime string) error {
+	_, err := q.db.ExecContext(ctx, insertMimeType, mime)
+	return err
 }
 
-const getMimeTypeByID = `-- name: GetMimeTypeByID :one
-SELECT id, mime
-FROM mime_types
-WHERE id = ?
-`
-
-func (q *Queries) GetMimeTypeByID(ctx context.Context, id int64) (MimeType, error) {
-	row := q.db.QueryRowContext(ctx, getMimeTypeByID, id)
-	var i MimeType
-	err := row.Scan(&i.ID, &i.Mime)
-	return i, err
-}
-
-const getMimeTypeByValue = `-- name: GetMimeTypeByValue :one
-SELECT id, mime
-FROM mime_types
-WHERE mime = ?
-`
-
-func (q *Queries) GetMimeTypeByValue(ctx context.Context, mime string) (MimeType, error) {
-	row := q.db.QueryRowContext(ctx, getMimeTypeByValue, mime)
-	var i MimeType
-	err := row.Scan(&i.ID, &i.Mime)
-	return i, err
-}
-
-const listMimeTypes = `-- name: ListMimeTypes :many
+const selectAllMimeTypes = `-- name: SelectAllMimeTypes :many
 SELECT id, mime
 FROM mime_types
 ORDER BY mime
 `
 
-func (q *Queries) ListMimeTypes(ctx context.Context) ([]MimeType, error) {
-	rows, err := q.db.QueryContext(ctx, listMimeTypes)
+func (q *Queries) SelectAllMimeTypes(ctx context.Context) ([]MimeType, error) {
+	rows, err := q.db.QueryContext(ctx, selectAllMimeTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -72,4 +48,30 @@ func (q *Queries) ListMimeTypes(ctx context.Context) ([]MimeType, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const selectMimeTypeByID = `-- name: SelectMimeTypeByID :one
+SELECT id, mime
+FROM mime_types
+WHERE id = ?
+`
+
+func (q *Queries) SelectMimeTypeByID(ctx context.Context, id int64) (MimeType, error) {
+	row := q.db.QueryRowContext(ctx, selectMimeTypeByID, id)
+	var i MimeType
+	err := row.Scan(&i.ID, &i.Mime)
+	return i, err
+}
+
+const selectMimeTypeByValue = `-- name: SelectMimeTypeByValue :one
+SELECT id, mime
+FROM mime_types
+WHERE mime = ?
+`
+
+func (q *Queries) SelectMimeTypeByValue(ctx context.Context, mime string) (MimeType, error) {
+	row := q.db.QueryRowContext(ctx, selectMimeTypeByValue, mime)
+	var i MimeType
+	err := row.Scan(&i.ID, &i.Mime)
+	return i, err
 }

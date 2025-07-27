@@ -10,7 +10,18 @@ import (
 	"database/sql"
 )
 
-const createImage = `-- name: CreateImage :exec
+const deleteImageByID = `-- name: DeleteImageByID :exec
+DELETE FROM images
+WHERE id = ?
+`
+
+func (q *Queries) DeleteImageByID(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteImageByID, id)
+	return err
+}
+
+const insertImage = `-- name: InsertImage :exec
+
 INSERT INTO images (
     id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
 ) VALUES (
@@ -18,7 +29,7 @@ INSERT INTO images (
 )
 `
 
-type CreateImageParams struct {
+type InsertImageParams struct {
 	ID         string
 	Filename   string
 	MimeTypeID int64
@@ -28,8 +39,9 @@ type CreateImageParams struct {
 	EditedAt   sql.NullTime
 }
 
-func (q *Queries) CreateImage(ctx context.Context, arg CreateImageParams) error {
-	_, err := q.db.ExecContext(ctx, createImage,
+// IMAGES --
+func (q *Queries) InsertImage(ctx context.Context, arg InsertImageParams) error {
+	_, err := q.db.ExecContext(ctx, insertImage,
 		arg.ID,
 		arg.Filename,
 		arg.MimeTypeID,
@@ -41,76 +53,22 @@ func (q *Queries) CreateImage(ctx context.Context, arg CreateImageParams) error 
 	return err
 }
 
-const deleteImage = `-- name: DeleteImage :exec
-DELETE FROM images
-WHERE id = ?
-`
-
-func (q *Queries) DeleteImage(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteImage, id)
-	return err
-}
-
-const getImageByHash = `-- name: GetImageByHash :one
+const selectAllImagesWithMime = `-- name: SelectAllImagesWithMime :many
 SELECT
-    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
-FROM images
-WHERE hash = ?
+    i.id,
+    i.filename,
+    i.mime_type_id,
+    m.mime,
+    i.thumbnail,
+    i.hash,
+    i.created_at,
+    i.edited_at
+FROM images i
+JOIN mime_types m ON i.mime_type_id = m.id
+ORDER BY i.created_at DESC
 `
 
-func (q *Queries) GetImageByHash(ctx context.Context, hash string) (Image, error) {
-	row := q.db.QueryRowContext(ctx, getImageByHash, hash)
-	var i Image
-	err := row.Scan(
-		&i.ID,
-		&i.Filename,
-		&i.MimeTypeID,
-		&i.Thumbnail,
-		&i.Hash,
-		&i.CreatedAt,
-		&i.EditedAt,
-	)
-	return i, err
-}
-
-const getImageByID = `-- name: GetImageByID :one
-SELECT
-    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
-FROM images
-WHERE id = ?
-`
-
-func (q *Queries) GetImageByID(ctx context.Context, id string) (Image, error) {
-	row := q.db.QueryRowContext(ctx, getImageByID, id)
-	var i Image
-	err := row.Scan(
-		&i.ID,
-		&i.Filename,
-		&i.MimeTypeID,
-		&i.Thumbnail,
-		&i.Hash,
-		&i.CreatedAt,
-		&i.EditedAt,
-	)
-	return i, err
-}
-
-const listImages = `-- name: ListImages :many
-SELECT
-    images.id,
-    images.filename,
-    images.mime_type_id,
-    mime_types.mime,
-    images.thumbnail,
-    images.hash,
-    images.created_at,
-    images.edited_at
-FROM images
-JOIN mime_types ON images.mime_type_id = mime_types.id
-ORDER BY images.created_at DESC
-`
-
-type ListImagesRow struct {
+type SelectAllImagesWithMimeRow struct {
 	ID         string
 	Filename   string
 	MimeTypeID int64
@@ -121,15 +79,15 @@ type ListImagesRow struct {
 	EditedAt   sql.NullTime
 }
 
-func (q *Queries) ListImages(ctx context.Context) ([]ListImagesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listImages)
+func (q *Queries) SelectAllImagesWithMime(ctx context.Context) ([]SelectAllImagesWithMimeRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectAllImagesWithMime)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListImagesRow
+	var items []SelectAllImagesWithMimeRow
 	for rows.Next() {
-		var i ListImagesRow
+		var i SelectAllImagesWithMimeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Filename,
@@ -153,21 +111,234 @@ func (q *Queries) ListImages(ctx context.Context) ([]ListImagesRow, error) {
 	return items, nil
 }
 
-const updateImageMetadata = `-- name: UpdateImageMetadata :exec
+const selectImageByHash = `-- name: SelectImageByHash :one
+SELECT
+    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
+FROM images
+WHERE hash = ?
+`
+
+func (q *Queries) SelectImageByHash(ctx context.Context, hash string) (Image, error) {
+	row := q.db.QueryRowContext(ctx, selectImageByHash, hash)
+	var i Image
+	err := row.Scan(
+		&i.ID,
+		&i.Filename,
+		&i.MimeTypeID,
+		&i.Thumbnail,
+		&i.Hash,
+		&i.CreatedAt,
+		&i.EditedAt,
+	)
+	return i, err
+}
+
+const selectImageByID = `-- name: SelectImageByID :one
+SELECT
+    id, filename, mime_type_id, thumbnail, hash, created_at, edited_at
+FROM images
+WHERE id = ?
+`
+
+func (q *Queries) SelectImageByID(ctx context.Context, id string) (Image, error) {
+	row := q.db.QueryRowContext(ctx, selectImageByID, id)
+	var i Image
+	err := row.Scan(
+		&i.ID,
+		&i.Filename,
+		&i.MimeTypeID,
+		&i.Thumbnail,
+		&i.Hash,
+		&i.CreatedAt,
+		&i.EditedAt,
+	)
+	return i, err
+}
+
+const selectImagesByDateRange = `-- name: SelectImagesByDateRange :many
+SELECT
+    i.id,
+    i.filename,
+    i.mime_type_id,
+    m.mime,
+    i.thumbnail,
+    i.hash,
+    i.created_at,
+    i.edited_at
+FROM images i
+JOIN mime_types m ON i.mime_type_id = m.id
+WHERE i.created_at BETWEEN ? AND ?
+ORDER BY i.created_at DESC
+`
+
+type SelectImagesByDateRangeParams struct {
+	FromCreatedAt sql.NullTime
+	ToCreatedAt   sql.NullTime
+}
+
+type SelectImagesByDateRangeRow struct {
+	ID         string
+	Filename   string
+	MimeTypeID int64
+	Mime       string
+	Thumbnail  []byte
+	Hash       string
+	CreatedAt  sql.NullTime
+	EditedAt   sql.NullTime
+}
+
+func (q *Queries) SelectImagesByDateRange(ctx context.Context, arg SelectImagesByDateRangeParams) ([]SelectImagesByDateRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectImagesByDateRange, arg.FromCreatedAt, arg.ToCreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectImagesByDateRangeRow
+	for rows.Next() {
+		var i SelectImagesByDateRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Filename,
+			&i.MimeTypeID,
+			&i.Mime,
+			&i.Thumbnail,
+			&i.Hash,
+			&i.CreatedAt,
+			&i.EditedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectImagesByMimeTypeID = `-- name: SelectImagesByMimeTypeID :many
+SELECT
+    i.id,
+    i.filename,
+    i.mime_type_id,
+    m.mime,
+    i.thumbnail,
+    i.hash,
+    i.created_at,
+    i.edited_at
+FROM images i
+JOIN mime_types m ON i.mime_type_id = m.id
+WHERE i.mime_type_id = ?
+ORDER BY i.created_at DESC
+`
+
+type SelectImagesByMimeTypeIDRow struct {
+	ID         string
+	Filename   string
+	MimeTypeID int64
+	Mime       string
+	Thumbnail  []byte
+	Hash       string
+	CreatedAt  sql.NullTime
+	EditedAt   sql.NullTime
+}
+
+func (q *Queries) SelectImagesByMimeTypeID(ctx context.Context, mimeTypeID int64) ([]SelectImagesByMimeTypeIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectImagesByMimeTypeID, mimeTypeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectImagesByMimeTypeIDRow
+	for rows.Next() {
+		var i SelectImagesByMimeTypeIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Filename,
+			&i.MimeTypeID,
+			&i.Mime,
+			&i.Thumbnail,
+			&i.Hash,
+			&i.CreatedAt,
+			&i.EditedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectMimeTypeByImageID = `-- name: SelectMimeTypeByImageID :one
+SELECT m.mime
+FROM images i
+JOIN mime_types m ON i.mime_type_id = m.id
+WHERE i.id = ?
+`
+
+func (q *Queries) SelectMimeTypeByImageID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, selectMimeTypeByImageID, id)
+	var mime string
+	err := row.Scan(&mime)
+	return mime, err
+}
+
+const selectThumbnailAndMimeByID = `-- name: SelectThumbnailAndMimeByID :one
+SELECT i.thumbnail, m.mime
+FROM images i
+JOIN mime_types m ON i.mime_type_id = m.id
+WHERE i.id = ?
+`
+
+type SelectThumbnailAndMimeByIDRow struct {
+	Thumbnail []byte
+	Mime      string
+}
+
+func (q *Queries) SelectThumbnailAndMimeByID(ctx context.Context, id string) (SelectThumbnailAndMimeByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, selectThumbnailAndMimeByID, id)
+	var i SelectThumbnailAndMimeByIDRow
+	err := row.Scan(&i.Thumbnail, &i.Mime)
+	return i, err
+}
+
+const selectThumbnailByID = `-- name: SelectThumbnailByID :one
+SELECT thumbnail
+FROM images
+WHERE id = ?
+`
+
+func (q *Queries) SelectThumbnailByID(ctx context.Context, id string) ([]byte, error) {
+	row := q.db.QueryRowContext(ctx, selectThumbnailByID, id)
+	var thumbnail []byte
+	err := row.Scan(&thumbnail)
+	return thumbnail, err
+}
+
+const updateImageMetadataByID = `-- name: UpdateImageMetadataByID :exec
 UPDATE images
 SET filename = ?, mime_type_id = ?, edited_at = ?
 WHERE id = ?
 `
 
-type UpdateImageMetadataParams struct {
+type UpdateImageMetadataByIDParams struct {
 	Filename   string
 	MimeTypeID int64
 	EditedAt   sql.NullTime
 	ID         string
 }
 
-func (q *Queries) UpdateImageMetadata(ctx context.Context, arg UpdateImageMetadataParams) error {
-	_, err := q.db.ExecContext(ctx, updateImageMetadata,
+func (q *Queries) UpdateImageMetadataByID(ctx context.Context, arg UpdateImageMetadataByIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateImageMetadataByID,
 		arg.Filename,
 		arg.MimeTypeID,
 		arg.EditedAt,

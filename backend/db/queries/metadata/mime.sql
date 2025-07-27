@@ -1,18 +1,20 @@
--- name: CreateMimeType :execresult
+-- MIME TYPES --
+
+-- name: InsertMimeType :exec
 INSERT INTO mime_types (mime)
 VALUES (?);
 
--- name: GetMimeTypeByID :one
+-- name: SelectMimeTypeByID :one
 SELECT id, mime
 FROM mime_types
 WHERE id = ?;
 
--- name: GetMimeTypeByValue :one
+-- name: SelectMimeTypeByValue :one
 SELECT id, mime
 FROM mime_types
 WHERE mime = ?;
 
--- name: ListMimeTypes :many
+-- name: SelectAllMimeTypes :many
 SELECT id, mime
 FROM mime_types
 ORDER BY mime;
