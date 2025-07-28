@@ -59,10 +59,105 @@
     border-radius: 8px;
     cursor: pointer;
     background-color: white;
-  }
+}
   
-  .tag-btn.selected, .album-btn.selected {
+.tag-btn.selected, .album-btn.selected {
     background-color: #007bff;
     color: white;
     border-color: #0056b3;
-  }
+}
+
+/* Container that holds sidebar and main content */
+.sidebar-layout {
+    display: flex; /* Flexbox layout */
+    height: 100vh; /* Full height of the screen */
+}
+
+/* Sidebar styling */
+.sidebar {
+    width: 240px; /* Fixed sidebar width */
+    background-color: #2c3e50;
+    color: white;
+    padding: 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Main content styling */
+.main-content {
+    padding: 40px 20px 40px 20px; /* Padding for content */
+    width: 100%; /* Take up the remaining width */
+    max-width: 1200px; /* Max width for the content */
+    min-width: 800px; /* Min width for the content */
+    box-sizing: border-box;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin-left: 240px; /* Offset content by sidebar width */
+    margin-right: auto; /* Ensure it's centered within the remaining space */
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+/* Center the content horizontally */
+.main-content > * {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+  
+.sidebar h2 {
+    margin-bottom: 20px;
+}
+  
+.sidebar button {
+    background-color: #34495e;
+    border: none;
+    padding: 10px;
+    color: white;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+  
+.sidebar button:hover {
+    background-color: #3d566e;
+}
+
+.content-wrapper {
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+}
+  
+html, body, #app {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+  
+body {
+    overflow-y: scroll;
+}
+
+#imageViewer {
+    min-height: 500px; 
+}
+  
+#thumbnailGallery {
+    min-height: 200px; 
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+}
+  

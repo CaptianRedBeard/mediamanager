@@ -16,6 +16,8 @@ import {
   GetImagesWithTag,
   ExportAlbumToZip,
   ExportAlbumToFolder,
+  //RemoveAlbumFromImage,
+  //RemoveTagFromImage,
 } from '../wailsjs/go/mediaapi/MediaAPI';
 
 setTimeout(() => {
@@ -27,12 +29,13 @@ console.log("window.go.mediaapi.MediaAPI", window.go.mediaapi?.MediaAPI); // Sho
 
 const routes = {
   home: `
+  <div class="content-wrapper">
     <h1>Welcome to Media Manager</h1>
-    <button id="goToUpload">Upload Images</button>
-    <button id= "goToGallery">Gallery</button>
-    <button id="goToExport">Export Albums</button>
-  `,
+    <p>Select an action from the left menu.</p>
+  </div> 
+`,
   upload: `
+  <div class="content-wrapper">
     <h1>Upload Images</h1>
     <form id="uploadForm" enctype="multipart/form-data">
       <input type="file" name="image" id="imageInput" multiple />
@@ -40,59 +43,67 @@ const routes = {
     </form>
     <ul id="uploadResults"></ul>
     <div id="uploadStatus"></div>
-    <button id="menu">Back To Menu</button>
+  </div> 
   `,
-  gallery:`
-  <h1>Gallery</h1>
-  <button id="menu">Back To Menu</button>
-  <button id="edit">Edit Image</button>
 
-  <div id="filterSection" style="margin: 10px 0;">
-    <div>
-      <label>Filter by Tags:</label>
-      <div id="tagFilter" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+  gallery: `
+  <div class="content-wrapper">
+    <h1 style="text-align: center;">Gallery</h1>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="align-self: center;">
+        <button id="edit">Edit Image</button>
+      </div>
+
+      <div id="filterSection" style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <label>Filter by Tags:</label>
+          <div id="tagFilter" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+        <div>
+          <label>Filter by Albums:</label>
+          <div id="albumFilter" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+      </div>
+
+      <div id="imageViewer" style="align-self: center; min-height: 500px; display: flex; justify-content: center; align-items: center;"></div>
+
+      <div id="thumbnailGallery" style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;"></div>
     </div>
-
-    <div>
-      <label>Filter by Albums:</label>
-      <div id="albumFilter" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
-    </div>
-  </div>
-
-  <div id="imageViewer" style="margin-top: 20px;"></div>
-  <div id="thumbnailGallery" style="display: flex; flex-wrap: wrap; gap: 12px;"></div>
+  </div> 
 `,
 
-  imgedit: `
-  <h1>Image Editor</h1>
-  <button id="menu">Back To Menu</button>
-  <button id="goToGallery">Gallery</button>
-  <div id="imageViewer" style="margin-top: 20px;"></div>
-  <div id="tagSection" style="margin-top: 20px;"></div>
-  <div id="albumSection" style="margin-top: 20px;"></div>
+  imgedit:`
+  <div class="content-wrapper">
+    <h1>Image Editor</h1>
+    <div id="imageViewer" style="margin-top: 20px;"></div>
+    <div id="tagSection" style="margin-top: 20px;"></div>
+    <div id="albumSection" style="margin-top: 20px;"></div>
+  </div>  
 `,
+
   export: `
-  <h1>Export Albums</h1>
-  <button id="menu">Back To Menu</button>
-  <div>
-    <label>Select an album to export:</label>
-    <select id="exportAlbumSelect"></select>
+  <div class="content-wrapper">
+    <h1>Export Albums</h1>
+    <div>
+      <label>Select an album to export:</label>
+      <select id="exportAlbumSelect"></select>
+    </div>
+    <div>
+      <label>Choose destination folder:</label>
+      <input type="text" id="exportPath" readonly />
+      <button id="browseExportPath">Browse</button>
+    </div>
+    <div>
+      <label>
+        <input type="radio" name="exportType" value="zip" checked /> Zip File
+      </label>
+      <label>
+        <input type="radio" name="exportType" value="folder" /> Folder
+      </label>
+    </div>
+    <button id="doExport">Export Album</button>
+    <div id="exportStatus">
   </div>
-  <div>
-    <label>Choose destination folder:</label>
-    <input type="text" id="exportPath" readonly />
-    <button id="browseExportPath">Browse</button>
-  </div>
-  <div>
-    <label>
-      <input type="radio" name="exportType" value="zip" checked /> Zip File
-    </label>
-    <label>
-      <input type="radio" name="exportType" value="folder" /> Folder
-    </label>
-  </div>
-  <button id="doExport">Export Album</button>
-  <div id="exportStatus"></div>
 `,
 
     
@@ -102,12 +113,46 @@ let selectedImageId = null;
 let selectedTags = [];
 let selectedAlbums = [];
 
+function setupSidebarNavigation() {
+  const routes = [
+    { id: "goToHome", route: "home" },
+    { id: "goToUpload", route: "upload" },
+    { id: "goToGallery", route: "gallery" },
+    { id: "goToExport", route: "export" },
+  ];
+
+  for (const { id, route } of routes) {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.addEventListener("click", () => navigateTo(route));
+    }
+  }
+}
 
 function navigateTo(route) {
   const app = document.getElementById("app");
-  app.innerHTML = routes[route];
+  app.innerHTML = `
+    <div class="sidebar-layout">
+      <div class="sidebar">
+        <h2>Media Manager</h2>
+        <button id="goToHome">Main Menu</button>
+        <button id="goToUpload">Upload Images</button>
+        <button id="goToGallery">Gallery</button>
+        <button id="goToExport">Export Albums</button>
+      </div>
+      <div class="main-content" id="main-content">
+        ${routes[route]}
+      </div>
+    </div>
+  `;
+
+  setupSidebarNavigation();
 
   if (route === "home") {
+   
+  }
+
+  if (route === "upload") {
     document.getElementById("goToUpload").addEventListener("click", () => {
       navigateTo("upload");
     });
@@ -116,9 +161,9 @@ function navigateTo(route) {
     });
     document.getElementById("goToExport").addEventListener("click", () => {
       navigateTo("export");
-    });  
+    });   
   }
-
+    
   if (route === "upload") {
     document.getElementById("menu").addEventListener("click", () => {
       navigateTo("home");
@@ -149,19 +194,14 @@ function navigateTo(route) {
     });
   }
 
-  if (route == "gallery") {
-    document.getElementById("menu").addEventListener("click", () => {
-      selectedTags = [];
-      selectedAlbums = [];
-      navigateTo("home");
-    });
+  if (route == "gallery") {  
     document.getElementById("edit").addEventListener("click", () => {
       navigateTo("imgedit");
     });
-  
-
-    const galleryContainer = document.getElementById("thumbnailGallery");
+    
     const viewer = document.getElementById("imageViewer");
+    const galleryContainer = document.getElementById("thumbnailGallery");
+
 
     const tagFilter = document.getElementById("tagFilter");
     const albumFilter = document.getElementById("albumFilter");
@@ -220,8 +260,6 @@ function navigateTo(route) {
     };
 
     const renderGallery = async () => {
-      const albumImages = await ListImagesInAlbum("LOTR");
-      console.log("Images in LOTR album:", albumImages);
 
       galleryContainer.innerHTML = "";
       viewer.innerHTML = "";
@@ -270,7 +308,6 @@ function navigateTo(route) {
         // Render thumbnails
         for (const id of matchingImageIDs) {
           try {
-            console.log("🔍 Trying to render image with ID:", id);
             const thumb = await GetThumbnailBase64(id);
     
             const button = document.createElement("button");
@@ -286,10 +323,31 @@ function navigateTo(route) {
     
             button.appendChild(img);
             button.addEventListener("click", async () => {
+              if (selectedImageId === id) {
+                viewer.innerHTML = "";
+                selectedImageId = null;
+                return;
+              }
+            
               selectedImageId = id;
               viewer.innerHTML = "Loading...";
+            
               const fullImage = await GetImageBase64(id);
-              viewer.innerHTML = `<img src="${fullImage}" style="max-width:100%; max-height:500px;" />`;
+              viewer.innerHTML = `
+                <img 
+                  src="${fullImage}" 
+                  data-id="${id}" 
+                  style="max-width:100%; max-height:500px; cursor: pointer;" 
+                  title="Click to close"
+                />
+              `;
+            
+              // Add click-to-close behavior on full image
+              const fullImg = viewer.querySelector("img");
+              fullImg.addEventListener("click", () => {
+                viewer.innerHTML = "";
+                selectedImageId = null;
+              });
             });
     
             galleryContainer.appendChild(button);
@@ -340,13 +398,6 @@ function navigateTo(route) {
   }
 
   if (route == "imgedit") {
-    document.getElementById("menu").addEventListener("click", () => {
-      navigateTo("home");
-    });
-    document.getElementById("goToGallery").addEventListener("click", () => {
-      navigateTo("gallery");
-    });
-
     const viewer = document.getElementById("imageViewer");
 
     if (selectedImageId) {
@@ -372,94 +423,131 @@ function navigateTo(route) {
 
     const renderAlbums = async () => {
       const albumContainer = document.getElementById("albumSection");
-      albumContainer.innerHTML = "<p>Loading Albums</p>";
-
+      albumContainer.innerHTML = "<p>Loading Albums...</p>";
+    
       try {
-        const albums = await ListAlbumNamesForImage(selectedImageId);
-        console.log("albums:", albums)
-        albumContainer.innerHTML =`
+        const existingAlbums = await ListAlbumNamesForImage(selectedImageId);
+        const allAlbums = await ListAllAlbums();
+    
+        // Exclude already-added albums from the datalist
+        const availableAlbums = allAlbums
+          .map(a => a.Name)
+          .filter(name => !existingAlbums.includes(name));
+    
+        albumContainer.innerHTML = `
           <h3>Albums</h3>
           <ul>
-            ${albums.map(album=>`
+            ${existingAlbums.map(album => `
               <li>
                 ${album}
-                <button data-album="${album}" class="remove-album">❌</button>
+                <button data-album="${album}" </button>
               </li>`).join("")}
-           </ul>
-          <input id="newAlbum" placeholder="New tag" />
-          <button id="addAlbum">Add Tag</button> 
+          </ul>
+    
+          <label for="albumInput">Add Album:</label>
+          <input id="albumInput" list="allAlbumsDatalist" placeholder="Type or select album" />
+          <datalist id="allAlbumsDatalist">
+            ${availableAlbums.map(album => `<option value="${album}"></option>`).join("")}
+          </datalist>
+          <button id="addAlbum">Add Album</button>
         `;
-
+        //<button data-album="${album}" class="remove-album">❌</button>
+    
         document.getElementById("addAlbum").addEventListener("click", async () => {
-          const newAlbum = document.getElementById("newAlbum").value.trim();
-          if (newAlbum) {
+          const newAlbum = document.getElementById("albumInput").value.trim();
+          if (newAlbum && !existingAlbums.includes(newAlbum)) {
             await AddImageToAlbum(selectedImageId, newAlbum);
             renderAlbums();
           }
         });
-
-        document.querySelectorAll(".remove-album").forEach(btn => {
+    
+        /*document.querySelectorAll(".remove-album").forEach(btn => {
           btn.addEventListener("click", async () => {
             await RemoveAlbumFromImage(selectedImageId, btn.dataset.album);
-            renderTags();
+            renderAlbums(); // Refresh album list
           });
-        });
+        });*/
       } catch (err) {
-        console.error("Error in GetAlbumsForImage", err);
-        tagContainer.innerHTML = `<p>Error loading albums: ${err.message}</p>`;
+        console.error("Error loading albums", err);
+        albumContainer.innerHTML = `<p>Error loading albums: ${err.message}</p>`;
       }
-    }
+    };
+    
 
     renderAlbums()
 
 
     const renderTags = async () => {
       const tagContainer = document.getElementById("tagSection");
-      tagContainer.innerHTML = "<p>Loading Tags</p>";
-
+      tagContainer.innerHTML = "<p>Loading Tags...</p>";
+    
       try {
-        const tags = await GetTagsForImage(selectedImageId);
-        console.log("tags:", tags)
-        tagContainer.innerHTML =`
+        if (!selectedImageId) {
+          tagContainer.innerHTML = "<p>No image selected.</p>";
+          return;
+        }
+        const existingTags = await GetTagsForImage(selectedImageId);
+        const allTags = await ListAllTags();
+    
+        // Exclude already-added tags from the datalist
+        const availableTags = allTags.filter(tag => !existingTags.includes(tag));
+    
+        tagContainer.innerHTML = `
           <h3>Tags</h3>
           <ul>
-            ${tags.map(tag=>`
+            ${existingTags.map(tag => `
               <li>
                 ${tag}
-                <button data-tag="${tag}" class="remove-tag">❌</button>
-              </li>`).join("")}
-           </ul>
-          <input id="newTag" placeholder="New tag" />
-          <button id="addTag">Add Tag</button> 
+                <button data-tag="${tag}"</button>
+              </li>
+            `).join("")}
+          </ul>
+    
+          <label for="tagInput">Add Tag:</label>
+          <input id="tagInput" list="allTagsDatalist" placeholder="Type or select tag" />
+          <datalist id="allTagsDatalist">
+            ${availableTags.map(tag => `<option value="${tag}"></option>`).join("")}
+          </datalist>
+          <button id="addTag">Add Tag</button>
         `;
-
+        //<button data-tag="${tag}" class="remove-tag">❌</button>
+    
+        // Handle adding tag
         document.getElementById("addTag").addEventListener("click", async () => {
-          const newTag = document.getElementById("newTag").value.trim();
-          if (newTag) {
-            await TagImage(selectedImageId, newTag);
+          const tag = document.getElementById("tagInput").value.trim();
+          if (tag && !existingTags.includes(tag)) {
+            await TagImage(selectedImageId, tag);
             renderTags();
           }
         });
-
-        document.querySelectorAll(".remove-tag").forEach(btn => {
+    
+        // Handle removing tags
+        /*document.querySelectorAll(".remove-tag").forEach(btn => {
           btn.addEventListener("click", async () => {
             await RemoveTagFromImage(selectedImageId, btn.dataset.tag);
             renderTags();
           });
-        });
+        });*/
+    
       } catch (err) {
-        console.error("Error in GetDetailedTagsForImage", err);
+        console.error("Error loading tags", err);
         tagContainer.innerHTML = `<p>Error loading tags: ${err.message}</p>`;
       }
-    }
-
+    };
     renderTags()
   }
 
   if (route === "export") {
-    document.getElementById("menu").addEventListener("click", () => {
-      navigateTo("home");
+    document.getElementById("goToUpload").addEventListener("click", () => {
+      navigateTo("upload");
     });
+    document.getElementById("goToGallery").addEventListener("click", () => {
+      navigateTo("gallery");
+    });
+    document.getElementById("goToExport").addEventListener("click", () => {
+      navigateTo("export");
+    });
+    
     
     const exportStatus = document.getElementById("exportStatus");
     const albumSelect = document.getElementById("exportAlbumSelect");
@@ -516,7 +604,7 @@ function navigateTo(route) {
     });
     
   }
-
+  setupSidebarNavigation();
   
 }
 

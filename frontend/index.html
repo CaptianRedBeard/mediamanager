@@ -6,7 +6,19 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app" class="sidebar-layout">
+    <div class="sidebar">
+      <h2>Media Manager</h2>
+      <button id="goToHome"> Main Menu</button>
+      <button id="goToUpload">Upload Images</button>
+      <button id="goToGallery">Gallery</button>
+      <button id="goToExport">Export Albums</button>
+    </div>
+    <div id="main-content" class="main-content">
+      <!-- Dynamic content goes here -->
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
