@@ -151,23 +151,8 @@ function navigateTo(route) {
   if (route === "home") {
    
   }
-
-  if (route === "upload") {
-    document.getElementById("goToUpload").addEventListener("click", () => {
-      navigateTo("upload");
-    });
-    document.getElementById("goToGallery").addEventListener("click", () => {
-      navigateTo("gallery");
-    });
-    document.getElementById("goToExport").addEventListener("click", () => {
-      navigateTo("export");
-    });   
-  }
     
   if (route === "upload") {
-    document.getElementById("menu").addEventListener("click", () => {
-      navigateTo("home");
-    });
 
     document.getElementById("uploadForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -378,7 +363,6 @@ function navigateTo(route) {
       try {
         // Filter for albums
         const allAlbums = await ListAllAlbums();
-        console.log("🎵 Albums:", allAlbums);
         allAlbums.forEach(album => {
           const option = document.createElement("option");
           option.value = album.Name;
