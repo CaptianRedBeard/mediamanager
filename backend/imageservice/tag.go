@@ -90,3 +90,12 @@ func (s *TagService) GetImagesWithTag(ctx context.Context, tagName string) ([]st
 	}
 	return imageIDs, nil
 }
+
+// ListTags returns all tags in the database.
+func (s *TagService) ListTags(ctx context.Context) ([]metadata.Tag, error) {
+	tags, err := s.q.SelectAllTags(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list tags: %w", err)
+	}
+	return tags, nil
+}

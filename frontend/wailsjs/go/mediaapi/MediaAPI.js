@@ -54,6 +54,10 @@ export function ListAllAlbums() {
   return window['go']['mediaapi']['MediaAPI']['ListAllAlbums']();
 }
 
+export function ListAllTags() {
+  return window['go']['mediaapi']['MediaAPI']['ListAllTags']();
+}
+
 export function ListImagesInAlbum(arg1) {
   return window['go']['mediaapi']['MediaAPI']['ListImagesInAlbum'](arg1);
 }

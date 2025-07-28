@@ -29,6 +29,8 @@ export function ListAlbumNamesForImage(arg1:string):Promise<Array<string>>;
 
 export function ListAllAlbums():Promise<Array<metadata.SelectAllAlbumsWithImageCountRow>>;
 
+export function ListAllTags():Promise<Array<string>>;
+
 export function ListImagesInAlbum(arg1:string):Promise<Array<metadata.Image>>;
 
 export function ResolveOrCreateMimeType(arg1:string):Promise<number>;

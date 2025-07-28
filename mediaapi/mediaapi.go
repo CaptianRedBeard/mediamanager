@@ -167,3 +167,18 @@ func (m *MediaAPI) GetImagesWithTag(tagName string) ([]string, error) {
 	ctx := context.Background()
 	return m.ImageService.Tags.GetImagesWithTag(ctx, tagName)
 }
+
+func (m *MediaAPI) ListAllTags() ([]string, error) {
+	ctx := context.Background()
+	tags, err := m.ImageService.Tags.ListTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		names = append(names, tag.Name)
+	}
+
+	return names, nil
+}

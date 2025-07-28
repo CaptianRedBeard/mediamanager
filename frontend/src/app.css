@@ -52,3 +52,17 @@
     border: none;
     background-color: rgba(255, 255, 255, 1);
 }
+
+.tag-btn, .album-btn {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: white;
+  }
+  
+  .tag-btn.selected, .album-btn.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+  }
