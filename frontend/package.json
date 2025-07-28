@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "vite": "^7.0.6"
+  },
+  "dependencies": {
+    "@wailsio/runtime": "^3.0.0-alpha.66"
   }
 }

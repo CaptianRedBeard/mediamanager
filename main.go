@@ -17,25 +17,23 @@ import (
 var assetsFS embed.FS
 
 func main() {
-	ctx := context.Background()
-
-	// Initialize backend service
-	/*backendService, err := backend.NewService(ctx, "data/images.db", "data/metadata.db")
+	mediaApi, err := mediaapi.NewMediaAPI(context.TODO(), "data/images.db", "data/metadata.db")
 	if err != nil {
-		log.Fatalf("Failed to initialize backend: %v", err)
-	}*/
-	mediaApi, _ := mediaapi.NewMediaAPI(ctx, "data/images.db", "data/metadata.db")
+		log.Fatal("Failed to initialize MediaAPI:", err)
+	}
 
-	// Run Wails app, exposing the MediaAPI directly to the frontend
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:  "Media Manager",
 		Width:  1024,
 		Height: 768,
-		Bind: []interface{}{
-			mediaApi,
-		},
 		AssetServer: &assetserver.Options{
 			Assets: assetsFS,
+		},
+		OnStartup: func(ctx context.Context) {
+			mediaApi.Startup(ctx)
+		},
+		Bind: []interface{}{
+			mediaApi,
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,

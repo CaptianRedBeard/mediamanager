@@ -14,10 +14,10 @@ import {
   GetThumbnailBase64,
   ListImagesInAlbum,
   GetImagesWithTag,
+  ExportAlbumToZip,
+  ExportAlbumToFolder,
 } from '../wailsjs/go/mediaapi/MediaAPI';
 
-
-console.log("✅ Wails runtime loaded");
 setTimeout(() => {
   console.log("⏱️ window.go after 200ms:", window.go);
 }, 200);
@@ -30,6 +30,7 @@ const routes = {
     <h1>Welcome to Media Manager</h1>
     <button id="goToUpload">Upload Images</button>
     <button id= "goToGallery">Gallery</button>
+    <button id="goToExport">Export Albums</button>
   `,
   upload: `
     <h1>Upload Images</h1>
@@ -70,6 +71,29 @@ const routes = {
   <div id="tagSection" style="margin-top: 20px;"></div>
   <div id="albumSection" style="margin-top: 20px;"></div>
 `,
+  export: `
+  <h1>Export Albums</h1>
+  <button id="menu">Back To Menu</button>
+  <div>
+    <label>Select an album to export:</label>
+    <select id="exportAlbumSelect"></select>
+  </div>
+  <div>
+    <label>Choose destination folder:</label>
+    <input type="text" id="exportPath" readonly />
+    <button id="browseExportPath">Browse</button>
+  </div>
+  <div>
+    <label>
+      <input type="radio" name="exportType" value="zip" checked /> Zip File
+    </label>
+    <label>
+      <input type="radio" name="exportType" value="folder" /> Folder
+    </label>
+  </div>
+  <button id="doExport">Export Album</button>
+  <div id="exportStatus"></div>
+`,
 
     
 };
@@ -77,11 +101,6 @@ const routes = {
 let selectedImageId = null;
 let selectedTags = [];
 let selectedAlbums = [];
-
-
-function getSelectedValues(selectElement) {
-  return Array.from(selectElement.selectedOptions).map(option => option.value);
-}
 
 
 function navigateTo(route) {
@@ -94,7 +113,10 @@ function navigateTo(route) {
     });
     document.getElementById("goToGallery").addEventListener("click", () => {
       navigateTo("gallery");
-    })
+    });
+    document.getElementById("goToExport").addEventListener("click", () => {
+      navigateTo("export");
+    });  
   }
 
   if (route === "upload") {
@@ -112,18 +134,18 @@ function navigateTo(route) {
         try {
           const arrayBuffer = await file.arrayBuffer();
           const byteArray = new Uint8Array(arrayBuffer);
-
+      
           const imageId = await ImportImage(file.name, Array.from(byteArray));
-
+      
           const li = document.createElement("li");
           li.innerHTML = `${file.name} uploaded! Image ID: <strong>${imageId}</strong>`;
           resultsList.appendChild(li);
         } catch (err) {
           const li = document.createElement("li");
-          li.innerHTML = `${file.name} failed: ${err.message}`;
+          li.innerHTML = `${file.name} failed: <strong>${err?.message || err || "Unknown error"}</strong>`;
           resultsList.appendChild(li);
         }
-      }
+      }      
     });
   }
 
@@ -136,8 +158,7 @@ function navigateTo(route) {
     document.getElementById("edit").addEventListener("click", () => {
       navigateTo("imgedit");
     });
-
-    
+  
 
     const galleryContainer = document.getElementById("thumbnailGallery");
     const viewer = document.getElementById("imageViewer");
@@ -273,7 +294,7 @@ function navigateTo(route) {
     
             galleryContainer.appendChild(button);
           } catch {
-            console.error("❌ Failed to load thumbnail for", id, e);
+            console.error("Failed to load thumbnail for", id, e);
           }
         }
       } catch (err) {
@@ -384,7 +405,7 @@ function navigateTo(route) {
           });
         });
       } catch (err) {
-        console.error("❌ Error in GetAlbumsForImage", err);
+        console.error("Error in GetAlbumsForImage", err);
         tagContainer.innerHTML = `<p>Error loading albums: ${err.message}</p>`;
       }
     }
@@ -427,12 +448,73 @@ function navigateTo(route) {
           });
         });
       } catch (err) {
-        console.error("❌ Error in GetDetailedTagsForImage", err);
+        console.error("Error in GetDetailedTagsForImage", err);
         tagContainer.innerHTML = `<p>Error loading tags: ${err.message}</p>`;
       }
     }
 
     renderTags()
+  }
+
+  if (route === "export") {
+    document.getElementById("menu").addEventListener("click", () => {
+      navigateTo("home");
+    });
+    
+    const exportStatus = document.getElementById("exportStatus");
+    const albumSelect = document.getElementById("exportAlbumSelect");
+    
+    (async () => {
+      try {
+        const albums = await ListAllAlbums();
+        albums.forEach(album => {
+          const opt = document.createElement("option");
+          opt.value = album.Name;
+          opt.textContent = album.Name;
+          albumSelect.appendChild(opt);
+        });
+      } catch (err) {
+        exportStatus.textContent = "Failed to load albums: " + err.message;
+      }
+    })();
+    
+    // Browse destination
+    document.getElementById("browseExportPath").addEventListener("click", async () => {
+      try {
+        const path = await window.go.mediaapi.MediaAPI.SelectDirectoryDialog();
+        document.getElementById("exportPath").value = path;
+      } catch (err) {
+        exportStatus.textContent = "Directory selection failed: " + err.message;
+      }
+    });
+    
+    document.getElementById("doExport").addEventListener("click", async () => {
+      const album = albumSelect.value;
+      const exportDir = document.getElementById("exportPath").value;
+      const exportType = document.querySelector('input[name="exportType"]:checked')?.value;
+    
+      if (!album || !exportDir) {
+        exportStatus.textContent = "Please select an album and destination.";
+        return;
+      }
+    
+      exportStatus.textContent = "Exporting...";
+    
+      try {
+        if (exportType === "zip") {
+          const zipPath = `${exportDir}/${album}.zip`;
+          await ExportAlbumToZip(album, zipPath);
+          exportStatus.textContent = `Album "${album}" exported to "${zipPath}".`;
+        } else {
+          await ExportAlbumToFolder(album, exportDir);
+          exportStatus.textContent = `Album "${album}" exported to folder "${exportDir}/${album}/"`;
+        }
+      } catch (err) {
+        console.error("Export failed:", err);
+        exportStatus.textContent = `Export failed: ${err.message || "Unknown error"}`;
+      }
+    });
+    
   }
 
   

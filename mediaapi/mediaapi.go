@@ -4,15 +4,23 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"mediamanager/backend/config"
 	"mediamanager/backend/db/generated/metadata"
 	"mediamanager/backend/imageservice"
+
+	"mediamanager/backend/utils"
+	"os"
+	"path/filepath"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:generate wails generate bindings
 
 type MediaAPI struct {
+	Ctx          context.Context
 	ImageService *imageservice.ImageService
 	AlbumService *imageservice.AlbumService
 }
@@ -68,7 +76,15 @@ func (m *MediaAPI) GetThumbnailBase64(id string) (string, error) {
 // Import a single image
 func (m *MediaAPI) ImportImage(filename string, fileBytes []byte) (string, error) {
 	ctx := context.Background()
-	return m.ImageService.Importer.ImportImage(ctx, filename, fileBytes)
+
+	id, err := m.ImageService.Importer.ImportImage(ctx, filename, fileBytes)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return "", fmt.Errorf("image already exists in the library")
+		}
+		return "", fmt.Errorf("failed to import %s: %w", filename, err)
+	}
+	return id, nil
 }
 
 // Import images from a directory
@@ -181,4 +197,120 @@ func (m *MediaAPI) ListAllTags() ([]string, error) {
 	}
 
 	return names, nil
+}
+
+func (m *MediaAPI) SelectDirectoryDialog() (string, error) {
+	return runtime.OpenDirectoryDialog(m.Ctx, runtime.OpenDialogOptions{
+		Title: "Select Export Destination",
+	})
+}
+
+// Export wrappers
+
+func (m *MediaAPI) ExportAlbumToZip(albumName string, destZip string) error {
+	ctx := context.Background()
+	images, err := m.AlbumService.ListImages(ctx, albumName)
+	if err != nil {
+		return fmt.Errorf("failed to list images in album: %w", err)
+	}
+
+	var filePaths []string
+	tempDir, err := os.MkdirTemp("", "album_export")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	for _, img := range images {
+		data, err := m.ImageService.Blobs.Get(ctx, img.ID)
+		if err != nil {
+			fmt.Println("⚠️ Failed to get blob for image", img.ID, err)
+			continue
+		}
+
+		mime, err := m.ImageService.Meta.SelectMimeTypeByImageID(ctx, img.ID)
+		if err != nil {
+			fmt.Println("⚠️ Failed to get MIME for image", img.ID, err)
+			continue
+		}
+
+		var ext string
+		switch mime {
+		case "image/jpeg":
+			ext = ".jpg"
+		case "image/png":
+			ext = ".png"
+		case "image/gif":
+			ext = ".gif"
+		default:
+			fmt.Println("⚠️ Skipping unsupported MIME type:", mime)
+			continue
+		}
+
+		filePath := filepath.Join(tempDir, img.ID+ext)
+		err = os.WriteFile(filePath, data, 0644)
+		if err != nil {
+			fmt.Println("⚠️ Failed to write file:", filePath, err)
+			continue
+		}
+
+		filePaths = append(filePaths, filePath)
+	}
+
+	if err := utils.ZipFiles(filePaths, destZip); err != nil {
+		return fmt.Errorf("failed to zip files: %w", err)
+	}
+
+	return nil
+}
+
+func (m *MediaAPI) ExportAlbumToFolder(albumName string, destDir string) error {
+	ctx := context.Background()
+
+	images, err := m.AlbumService.ListImages(ctx, albumName)
+	if err != nil {
+		return fmt.Errorf("failed to list images in album: %w", err)
+	}
+
+	albumPath := filepath.Join(destDir, albumName)
+	err = os.MkdirAll(albumPath, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create album folder: %w", err)
+	}
+
+	for _, img := range images {
+		data, err := m.ImageService.Blobs.Get(ctx, img.ID)
+		if err != nil {
+			continue
+		}
+
+		mime, err := m.ImageService.Meta.SelectMimeTypeByImageID(ctx, img.ID)
+		if err != nil {
+			continue
+		}
+
+		var ext string
+		switch mime {
+		case "image/jpeg":
+			ext = ".jpg"
+		case "image/png":
+			ext = ".png"
+		case "image/gif":
+			ext = ".gif"
+		default:
+			continue
+		}
+
+		filePath := filepath.Join(albumPath, img.ID+ext)
+		err = os.WriteFile(filePath, data, 0644)
+		if err != nil {
+			continue
+		}
+	}
+
+	return nil
+}
+
+func (m *MediaAPI) Startup(ctx context.Context) {
+	m.Ctx = ctx
 }

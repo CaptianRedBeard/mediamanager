@@ -14,6 +14,14 @@ export function CreateTag(arg1) {
   return window['go']['mediaapi']['MediaAPI']['CreateTag'](arg1);
 }
 
+export function ExportAlbumToFolder(arg1, arg2) {
+  return window['go']['mediaapi']['MediaAPI']['ExportAlbumToFolder'](arg1, arg2);
+}
+
+export function ExportAlbumToZip(arg1, arg2) {
+  return window['go']['mediaapi']['MediaAPI']['ExportAlbumToZip'](arg1, arg2);
+}
+
 export function GetAllThumbnails() {
   return window['go']['mediaapi']['MediaAPI']['GetAllThumbnails']();
 }
@@ -64,6 +72,14 @@ export function ListImagesInAlbum(arg1) {
 
 export function ResolveOrCreateMimeType(arg1) {
   return window['go']['mediaapi']['MediaAPI']['ResolveOrCreateMimeType'](arg1);
+}
+
+export function SelectDirectoryDialog() {
+  return window['go']['mediaapi']['MediaAPI']['SelectDirectoryDialog']();
+}
+
+export function Startup(arg1) {
+  return window['go']['mediaapi']['MediaAPI']['Startup'](arg1);
 }
 
 export function TagImage(arg1, arg2) {
