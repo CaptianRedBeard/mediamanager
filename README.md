@@ -66,4 +66,4 @@ Planned features:
 - Paging through Gallery results in edit mode
 - Support for video formats
 - Private media to hide from veiw
-- Add text to media
+- Add text to media 
